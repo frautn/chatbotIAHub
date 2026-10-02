@@ -1,0 +1,7 @@
+sequenceDiagram
+    participant Cliente
+    participant Django as Servidor Django
+
+    Cliente->>Django: Petición HTTP (request)
+    Django->>Django: Procesa vista (view)
+    Django-->>Cliente: Respuesta HTTP (response)
