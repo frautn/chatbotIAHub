@@ -1,7 +1,63 @@
-sequenceDiagram
-    participant Cliente
-    participant Django as Servidor Django
+flowchart LR
+	student[Student]
+	professor[Professor]
+	admin[Administrator]
 
-    Cliente->>Django: Petición HTTP (request)
-    Django->>Django: Procesa vista (view)
-    Django-->>Cliente: Respuesta HTTP (response)
+	subgraph university[University]
+		subgraph moodleSite[Moodle site]
+			moodle[Moodle platform and gradebook]
+			courseImport[Course activity import]
+			subgraph course[Moodle course]
+				activities[Graded LTI external-tool activity]
+			end
+			moodle --> course
+			courseImport -->|imports activity into| course
+		end
+	end
+
+	subgraph management[Activity management]
+		manager[Django app Manager]
+		activityExport[Exported activity package]
+		manager -->|exports activities| activityExport
+	end
+
+	subgraph integration[Integration layer - proposed]
+		gateway[LTI gateway<br/>Tool Provider / launch broker]
+	end
+
+	subgraph deployment[Open WebUI deployment]
+		subgraph docker[Docker]
+			studentWebui[Customized Open WebUI<br/>Student chat dialog]
+			adminWebui[Stock Open WebUI<br/>Administrator interface]
+				modelAccess[Open WebUI model connections]
+		end
+		postgres[(PostgreSQL)]
+		studentWebui -->|application data| postgres
+		adminWebui -->|application data| postgres
+			studentWebui --> modelAccess
+			adminWebui --> modelAccess
+	end
+
+	subgraph modelBackends[LLM backends]
+		companyModels[Company-hosted large LLMs<br/>Gemini, Kimi, and others]
+		inHouseLarge[In-house managed large LLMs<br/>optional]
+		inHouseSmall[In-house small LLMs<br/>optional]
+	end
+
+	modelAccess -->|provider API| companyModels
+	modelAccess -->|private endpoint| inHouseLarge
+	modelAccess -->|local inference endpoint| inHouseSmall
+
+	student -->|opens activity| activities
+	professor -->|creates and manages activities| manager
+	professor -->|imports package into course| courseImport
+	admin -->|manager access with admin privileges| manager
+	admin -->|direct access| adminWebui
+	admin -->|database access for analysis| postgres
+	activityExport -->|provided for import| courseImport
+	activities -->|LTI 1.1 launch<br/>OAuth 1.0 signed request| gateway
+	activities -->|LTI 1.3 launch<br/>OIDC and signed JWT| gateway
+	gateway -->|validates launch; maps user, course, and activity| student
+	student -->|redirect or proxied session| studentWebui
+	gateway -.->|optional LTI 1.1 grade return<br/>Basic Outcomes service| moodle
+	gateway -.->|optional LTI 1.3 grade return<br/>Assignment and Grade Services - AGS| moodle
