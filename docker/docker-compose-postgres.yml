@@ -1,0 +1,23 @@
+name: pgsql-moodlewebui
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pgsql-moodlewebui
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-webui_user}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-some_strong_password}"
+      POSTGRES_DB: "${POSTGRES_DB:-webui_db}"
+    volumes:
+      - pgsql-moodlewebui-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-webui_user} -d ${POSTGRES_DB:-webui_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgsql-moodlewebui-data:

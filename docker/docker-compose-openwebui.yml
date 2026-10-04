@@ -1,0 +1,20 @@
+name: openwebui-for-moodle
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui-for-moodle
+    ports:
+      - "3000:8080"
+    environment:
+      DATABASE_URL: "${DATABASE_URL:-postgresql://webui_user:some_strong_password@host.docker.internal:5432/webui_db}"
+      OPENAI_API_BASE_URL: "${OPENAI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - openwebui-for-moodle-data:/app/backend/data
+    restart: unless-stopped
+
+volumes:
+  openwebui-for-moodle-data:
