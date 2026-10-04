@@ -3,6 +3,12 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+if [[ -f "$script_dir/.env" ]]; then
+  set -a
+  source "$script_dir/.env"
+  set +a
+fi
+
 export POSTGRES_USER="${POSTGRES_USER:-webui_user}"
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-some_strong_password}"
 export POSTGRES_DB="${POSTGRES_DB:-webui_db}"
