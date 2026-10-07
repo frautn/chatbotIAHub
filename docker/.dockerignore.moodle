@@ -1,0 +1,9 @@
+.git
+node_modules
+vendor
+.vscode
+.idea
+behat_faildumps
+phpunit.xml
+.phpunit.result.cache
+*.log
