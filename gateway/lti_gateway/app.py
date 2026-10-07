@@ -199,6 +199,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         response = make_response("", 204)
         response.headers["X-LTI-Email"] = identity["email"]
         response.headers["X-LTI-Name"] = identity["name"]
+        if settings.student_group:
+            response.headers["X-LTI-Group"] = settings.student_group
         return response
 
     @app.post("/api/scores")

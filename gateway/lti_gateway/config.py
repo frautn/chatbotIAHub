@@ -15,6 +15,7 @@ class Settings:
     api_token: str
     session_ttl: int
     email_domain: str
+    student_group: str
 
     @property
     def secure(self) -> bool:
@@ -35,6 +36,7 @@ class Settings:
             api_token=os.environ.get("GATEWAY_API_TOKEN", ""),
             session_ttl=int(os.environ.get("GATEWAY_SESSION_TTL", "28800")),
             email_domain=os.environ.get("GATEWAY_USER_EMAIL_DOMAIN", "lti.invalid"),
+            student_group=os.environ.get("GATEWAY_STUDENT_GROUP", "estudiantes"),
         )
 
 
