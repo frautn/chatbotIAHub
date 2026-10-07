@@ -100,6 +100,7 @@ def test_deep_linking_round_trip(client, platform):
     claims = jwt.decode(token, options={"verify_signature": False})
     item = claims["https://purl.imsglobal.org/spec/lti-dl/claim/content_items"][0]
     assert item["url"] == LAUNCH_URL and item["title"] == "Tutor"
+    assert "custom" not in item
     assert item["lineItem"]["scoreMaximum"] == 10
     assert claims["https://purl.imsglobal.org/spec/lti-dl/claim/data"] == "opaque"
 

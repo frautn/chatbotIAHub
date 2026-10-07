@@ -35,6 +35,16 @@ DEEPLINK_FORM = """<!doctype html>
 </form></body></html>"""
 
 
+class ResourceLink(DeepLinkResource):
+    """Omit empty `custom`: Moodle decodes `{}` to a PHP array and fails in params_to_string()."""
+
+    def to_dict(self):
+        item = super().to_dict()
+        if not item.get("custom"):
+            item.pop("custom", None)
+        return item
+
+
 def ascii_fold(text: str) -> str:
     return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().strip()
 
@@ -162,7 +172,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         link_settings = state["settings"]
         title = request.form.get("title", "Chatbot")[:255] or "Chatbot"
 
-        resource = DeepLinkResource().set_url(launch_url).set_title(title)
+        resource = ResourceLink().set_url(launch_url).set_title(title)
         if request.form.get("graded") and "ltiResourceLink" in link_settings.get(
             "accept_types", []
         ):
