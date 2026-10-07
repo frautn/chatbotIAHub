@@ -21,6 +21,18 @@ Generate keys
 Run generate-keys.sh
 
 
+Order of scripts
+----------------
+
+0) ./generate-keys.sh
+1) Set: START_MOODLE=false
+2) ./start.sh
+3) ./init-moodle-db.sh 
+4) ./stop.sh
+5) Set: START_MOODLE=true
+5) ./start.sh
+
+
 Moodle 5.3
 ----------
 Moodle's source code is NOT part of this repo; it's built from a separate checkout
