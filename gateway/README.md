@@ -1,0 +1,74 @@
+# LTI 1.3 gateway
+
+Flask service that lets Moodle launch Open WebUI as an LTI 1.3 External Tool:
+OIDC login, launch validation, Deep Linking, automatic SSO into a student-facing
+Open WebUI, and AGS score submission (no automatic grading policy).
+
+## How SSO works
+
+1. Moodle starts `/lti/login`, then POSTs a signed id_token to `/lti/launch`.
+2. The gateway validates it, stores the AGS context, and sets a signed `lti_gw`
+   cookie, then redirects to `/`.
+3. nginx (`docker/nginx-lti.example.conf`) runs `auth_request` against `/auth`,
+   which returns `X-LTI-Email`/`X-LTI-Name`. nginx forwards them as
+   `X-Forwarded-Email`/`X-Forwarded-Name`, which the `open-webui-lti` container
+   trusts (`WEBUI_AUTH_TRUSTED_*`). Open WebUI creates the user on first visit.
+4. The email is a stable hash of issuer + client + LTI `sub`; no real email is shared.
+
+`open-webui-lti` trusts identity headers, so it is bound to `127.0.0.1` and must
+only be reached through nginx. Keep the stock instance for administrators.
+
+## Deploy
+
+1. Set `LTI_PUBLIC_URL`, `LTI_GATEWAY_SECRET_KEY`, `LTI_GATEWAY_API_TOKEN`
+   (`openssl rand -hex 32`) in `docker/.env`, and `START_LTI=true`; run `docker/start.sh`.
+2. Install `docker/nginx-lti.example.conf` (set `server_name` and certificates).
+3. In Moodle: *Site administration > Plugins > Activity modules > External tool >
+   Manage tools > configure a tool manually*, LTI version 1.3, public key type
+   "JWK keyset", using the URLs from `https://<LTI_PUBLIC_URL>/lti/config`. Enable
+   Deep Linking (content selection URL = tool URL) and AGS ("Use this service for
+   grade sync and column management"), and set "Default launch container" to
+   "New window" (cookies in iframes are often blocked).
+4. Copy the values Moodle shows (Platform ID, Client ID, Deployment ID, and its
+   authentication/token/keyset URLs) into `platforms.json`:
+
+   ```json
+   {
+     "https://moodle.example.com": {
+       "client_id": "CLIENT_ID",
+       "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
+       "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
+       "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
+       "deployment_ids": ["1"]
+     }
+   }
+   ```
+
+   Then `docker cp platforms.json lti-gateway:/data/platforms.json` and
+   `docker restart lti-gateway`.
+
+## Submitting scores
+
+The gateway only provides the AGS plumbing. A trusted backend submits scores:
+
+```
+curl -X POST http://127.0.0.1:8090/api/scores \
+  -H "Authorization: Bearer $LTI_GATEWAY_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"iss":"...","client_id":"...","resource_link_id":"...","sub":"...","score_given":8,"score_maximum":10}'
+```
+
+The learner must have launched the activity at least once. The endpoint is blocked in nginx.
+
+## Operations
+
+* Tool keys are generated in the `lti-gateway-data` volume (`/data/keys`); rotate by
+  deleting them and restarting, then refresh the keyset in Moodle.
+* Troubleshooting: `docker logs lti-gateway` shows the validation failure reason;
+  clients only see a generic 400.
+
+## Development
+
+```
+python -m venv venv && venv/bin/pip install -r gateway/requirements-dev.txt
+venv/bin/python -m pytest gateway
+```

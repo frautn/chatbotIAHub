@@ -1,0 +1,49 @@
+name: lti-gateway
+
+services:
+  lti-gateway:
+    build:
+      context: ../gateway
+    image: chatbotiahub-lti-gateway:latest
+    container_name: lti-gateway
+    ports:
+      - "127.0.0.1:${LTI_GATEWAY_PORT:-8090}:8090"
+    environment:
+      GATEWAY_SECRET_KEY: "${LTI_GATEWAY_SECRET_KEY:?Set LTI_GATEWAY_SECRET_KEY}"
+      GATEWAY_PUBLIC_URL: "${LTI_PUBLIC_URL:?Set LTI_PUBLIC_URL, e.g. https://chat.example.com}"
+      GATEWAY_API_TOKEN: "${LTI_GATEWAY_API_TOKEN:-}"
+      GATEWAY_SESSION_TTL: "${LTI_SESSION_TTL:-28800}"
+      GATEWAY_USER_EMAIL_DOMAIN: "${LTI_USER_EMAIL_DOMAIN:-lti.invalid}"
+    volumes:
+      - lti-gateway-data:/data
+    restart: unless-stopped
+
+  # Student-facing Open WebUI. It trusts identity headers, so it must only be
+  # reachable through the nginx auth_request front end (bound to localhost).
+  open-webui-lti:
+    image: "${OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}"
+    container_name: openwebui-lti
+    ports:
+      - "127.0.0.1:${LTI_WEBUI_PORT:-3001}:8080"
+    environment:
+      DATABASE_URL: "${DATABASE_URL:-postgresql://webui_user:some_strong_password@host.docker.internal:5432/webui_db}"
+      OPENAI_API_BASE_URL: "${OPENAI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:-}"
+      WEBUI_AUTH_TRUSTED_EMAIL_HEADER: "X-Forwarded-Email"
+      WEBUI_AUTH_TRUSTED_NAME_HEADER: "X-Forwarded-Name"
+      DEFAULT_USER_ROLE: "user"
+      ENABLE_SIGNUP: "false"
+      WEBUI_SESSION_COOKIE_SECURE: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - openwebui-shared-data:/app/backend/data
+    restart: unless-stopped
+
+volumes:
+  lti-gateway-data:
+  openwebui-shared-data:
+    # Same fixed name in both compose projects so the stock and LTI instances
+    # share uploads and the vector store. Default keeps the pre-existing volume.
+    name: "${OPENWEBUI_DATA_VOLUME:-openwebui-for-moodle_openwebui-for-moodle-data}"
