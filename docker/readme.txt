@@ -9,6 +9,7 @@ Keep the file out of Git and restrict its permissions with chmod 600 docker/.env
 Prerequisites
 -------------
 cd docker
+git clone https://github.com/open-webui/open-webui.git open-webui-custom
 git clone https://github.com/moodlehq/moodle-docker.git
 git clone -b MOODLE_503_STABLE git://git.moodle.org/moodle.git moodle503
 cp .dockerignore.moodle moodle503/.dockerignore
