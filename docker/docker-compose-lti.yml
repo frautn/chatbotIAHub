@@ -43,7 +43,7 @@ services:
 
 volumes:
   lti-gateway-data:
+  # Created and owned by docker-compose-openwebui.yml, which start.sh brings up first.
   openwebui-shared-data:
-    # Same fixed name in both compose projects so the stock and LTI instances
-    # share uploads and the vector store. Default keeps the pre-existing volume.
+    external: true
     name: "${OPENWEBUI_DATA_VOLUME:-openwebui-for-moodle_openwebui-for-moodle-data}"
