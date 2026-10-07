@@ -40,6 +40,8 @@ See ../gateway/README.md. Set START_LTI=true plus the LTI_* variables in docker/
 start.sh then builds and starts docker-compose-lti.yml (the lti-gateway service and
 the student-facing openwebui-lti instance). Use nginx-lti.example.conf as the public front end.
 
+sudo ln -s /etc/nginx/sites-available/lti.retag.lat /etc/nginx/sites-enabled/
+
 Running both Open WebUI instances
 ---------------------------------
 The stock (admin/professor) and LTI (student) instances share Postgres and one
