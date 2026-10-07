@@ -64,3 +64,5 @@ data volume (uploads, vector store), and must share WEBUI_SECRET_KEY. Pin
 OPENWEBUI_IMAGE to the same explicit version tag for both and upgrade by
 restarting one instance first so DB migrations don't race. Persistent settings
 (e.g. ENABLE_SIGNUP, DEFAULT_USER_ROLE) live in the DB and apply to both.
+
+To delete the containers: ./remove.sh (keeps data); ./remove.sh --volumes also deletes all data.
