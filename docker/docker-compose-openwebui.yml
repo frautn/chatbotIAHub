@@ -2,7 +2,7 @@ name: openwebui-for-moodle
 
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: "${OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}"
     container_name: openwebui-for-moodle
     ports:
       - "127.0.0.1:3000:8080"
@@ -10,11 +10,15 @@ services:
       DATABASE_URL: "${DATABASE_URL:-postgresql://webui_user:some_strong_password@host.docker.internal:5432/webui_db}"
       OPENAI_API_BASE_URL: "${OPENAI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:-}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - openwebui-for-moodle-data:/app/backend/data
+      - openwebui-shared-data:/app/backend/data
     restart: unless-stopped
 
 volumes:
-  openwebui-for-moodle-data:
+  openwebui-shared-data:
+    # Same fixed name in both compose projects so the stock and LTI instances
+    # share uploads and the vector store. Default keeps the pre-existing volume.
+    name: "${OPENWEBUI_DATA_VOLUME:-openwebui-for-moodle_openwebui-for-moodle-data}"

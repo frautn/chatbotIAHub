@@ -5,6 +5,13 @@ For an external database, set START_POSTGRES=false and provide DATABASE_URL. The
 .env
 Keep the file out of Git and restrict its permissions with chmod 600 docker/.env; it contains secrets.
 
+
+Generate keys
+-------------
+
+Run generate-keys.sh
+
+
 Moodle 5.3
 ----------
 Moodle's source code is NOT part of this repo; it's built from a separate checkout
@@ -33,3 +40,21 @@ One-time setup:
 config.php is generated at container startup from the MOODLE_DB_* / MOODLE_WWWROOT
 environment variables (see the Dockerfile) - do not edit it inside the container,
 edit the env vars and recreate the containers instead.
+
+LTI gateway
+-----------
+See ../gateway/README.md. Set START_LTI=true plus the LTI_* variables in docker/.env;
+start.sh then builds and starts docker-compose-lti.yml (the lti-gateway service and
+the student-facing openwebui-lti instance). Use nginx-lti.example.conf as the public front end.
+
+sudo ln -s /etc/nginx/sites-available/lti.retag.lat /etc/nginx/sites-enabled/
+
+Running both Open WebUI instances
+---------------------------------
+The stock (admin/professor) and LTI (student) instances share Postgres and one
+data volume (uploads, vector store), and must share WEBUI_SECRET_KEY. Pin
+OPENWEBUI_IMAGE to the same explicit version tag for both and upgrade by
+restarting one instance first so DB migrations don't race. Persistent settings
+(e.g. ENABLE_SIGNUP, DEFAULT_USER_ROLE) live in the DB and apply to both.
+
+To delete the containers: ./remove.sh (keeps data); ./remove.sh --volumes also deletes all data.

@@ -1,0 +1,4 @@
+Flask>=3.1,<4
+PyLTI1p3>=2.0,<3
+cryptography>=43
+gunicorn>=23
