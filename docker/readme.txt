@@ -6,6 +6,15 @@ For an external database, set START_POSTGRES=false and provide DATABASE_URL. The
 Keep the file out of Git and restrict its permissions with chmod 600 docker/.env; it contains secrets.
 
 
+Prerequisites
+-------------
+cd docker
+git clone https://github.com/moodlehq/moodle-docker.git
+git clone -b MOODLE_503_STABLE git://git.moodle.org/moodle.git moodle503
+cp .dockerignore.moodle moodle503/.dockerignore
+cp Dockerfile.moodle moodle503/Dockerfile
+
+
 Generate keys
 -------------
 
@@ -20,7 +29,7 @@ branch) living anywhere on the OCI server. docker-compose-moodle.yml builds the
 image straight from that checkout using the Dockerfile that lives at its root.
 
 One-time setup:
-1. Clone Moodle 5.3 somewhere on the server, e.g. /opt/moodle503.
+1. Clone Moodle 5.3 somewhere on the server, e.g. /opt/moodle503 (done in prerequisites, at docker/moodle503)
 2. Set in docker/.env: MOODLE_SRC_DIR (path from step 1), MOODLE_DB_PASS,
    MOODLE_WWWROOT (e.g. https://moodle.example.com), and optionally
    MOODLE_DB_NAME / MOODLE_DB_USER / MOODLE_WEB_PORT.
