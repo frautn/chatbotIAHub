@@ -1,0 +1,50 @@
+name: moodle
+
+services:
+  moodle:
+    build:
+      context: ${MOODLE_SRC_DIR:?Set MOODLE_SRC_DIR to the absolute path of your Moodle 5.3 checkout}
+    image: moodle-for-chatbotiahub:5.3
+    container_name: moodle
+    ports:
+      - "127.0.0.1:${MOODLE_WEB_PORT:-8081}:80"
+    environment:
+      MOODLE_DB_HOST: "${MOODLE_DB_HOST:-host.docker.internal}"
+      MOODLE_DB_PORT: "${MOODLE_DB_PORT:-5432}"
+      MOODLE_DB_NAME: "${MOODLE_DB_NAME:-moodle_db}"
+      MOODLE_DB_USER: "${MOODLE_DB_USER:-moodle_user}"
+      MOODLE_DB_PASS: "${MOODLE_DB_PASS:?Set MOODLE_DB_PASS}"
+      MOODLE_WWWROOT: "${MOODLE_WWWROOT:?Set MOODLE_WWWROOT, e.g. https://moodle.example.com}"
+      MOODLE_SSLPROXY: "${MOODLE_SSLPROXY:-true}"
+      PHP_INI-upload_max_filesize: "${MOODLE_UPLOAD_MAX_FILESIZE:-200M}"
+      PHP_INI-post_max_size: "${MOODLE_POST_MAX_SIZE:-210M}"
+      PHP_INI-memory_limit: "${MOODLE_PHP_MEMORY_LIMIT:-256M}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - moodle-data:/var/www/moodledata
+    restart: unless-stopped
+
+  # Moodle requires a recurring cron run; this sidecar reuses the same image/config.
+  moodle-cron:
+    image: moodle-for-chatbotiahub:5.3
+    container_name: moodle-cron
+    depends_on:
+      - moodle
+    environment:
+      MOODLE_DB_HOST: "${MOODLE_DB_HOST:-host.docker.internal}"
+      MOODLE_DB_PORT: "${MOODLE_DB_PORT:-5432}"
+      MOODLE_DB_NAME: "${MOODLE_DB_NAME:-moodle_db}"
+      MOODLE_DB_USER: "${MOODLE_DB_USER:-moodle_user}"
+      MOODLE_DB_PASS: "${MOODLE_DB_PASS:?Set MOODLE_DB_PASS}"
+      MOODLE_WWWROOT: "${MOODLE_WWWROOT:?Set MOODLE_WWWROOT, e.g. https://moodle.example.com}"
+      MOODLE_SSLPROXY: "${MOODLE_SSLPROXY:-true}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - moodle-data:/var/www/moodledata
+    command: ["bash", "-c", "while true; do php /var/www/html/admin/cli/cron.php >> /proc/1/fd/1 2>&1 || true; sleep 60; done"]
+    restart: unless-stopped
+
+volumes:
+  moodle-data:
