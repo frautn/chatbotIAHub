@@ -63,6 +63,59 @@ def test_identity_is_stable_per_user(client, platform):
     assert client.get("/auth").headers["X-LTI-Email"] == first
 
 
+def _client_with_webui_internal_url(settings, platform, url):
+    object.__setattr__(settings, "webui_internal_url", url)
+    from lti_gateway.app import create_app
+
+    settings.data_dir.joinpath("platforms.json").write_text(
+        json.dumps(
+            {
+                ISS: {
+                    "client_id": CLIENT_ID,
+                    "auth_login_url": f"{ISS}/auth",
+                    "auth_token_url": f"{ISS}/token",
+                    "key_set": platform.jwks,
+                    "deployment_ids": [DEPLOYMENT_ID],
+                }
+            }
+        )
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_relaunch_resumes_previous_chat(settings, platform):
+    client = _client_with_webui_internal_url(settings, platform, "http://openwebui.internal")
+
+    with patch("lti_gateway.app.find_resumable_chat", return_value="chat-123") as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked.assert_called_once()
+
+    # The chat id is now stored on the resource link: no lookup is needed again.
+    with patch("lti_gateway.app.find_resumable_chat") as mocked_again:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked_again.assert_not_called()
+
+
+def test_no_chat_to_resume_falls_back_to_new_chat(settings, platform):
+    client = _client_with_webui_internal_url(settings, platform, "http://openwebui.internal")
+
+    with patch("lti_gateway.app.find_resumable_chat", return_value=None) as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/"
+    mocked.assert_called_once()
+
+
+def test_resume_lookup_skipped_without_webui_internal_url(client, platform):
+    with patch("lti_gateway.app.find_resumable_chat") as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/"
+    mocked.assert_not_called()
+
+
 def test_auth_rejects_missing_and_forged_sessions(client):
     assert client.get("/auth").status_code == 401
     forged = URLSafeTimedSerializer("wrong").dumps({"email": "a@b", "name": "x"}, salt="sso")

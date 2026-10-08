@@ -38,6 +38,23 @@ straight into Open WebUI with that model preselected (`/?models=<id>`). Leave
 `GATEWAY_MODELS` empty to hide the picker and always use Open WebUI's default
 model.
 
+## Resuming a conversation
+
+The gateway remembers, per resource link + learner, the Open WebUI chat they
+used. The first time a learner launches an activity there's nothing to resume,
+so they land on a new chat as usual. From the next launch onward, the gateway
+signs in to Open WebUI on the learner's behalf (`GATEWAY_WEBUI_INTERNAL_URL`,
+reachable only inside the Docker network) to find their most recent chat and
+redirects straight to it (`/c/<chat_id>`), picking up the conversation where
+they left off.
+
+When the activity pins a model (see above), only a chat using that model is
+eligible, so distinct activities never share a conversation. Without a pinned
+model, the learner's single most recent chat is reused, which only disambiguates
+correctly if the learner has one chatbot activity. `GATEWAY_WEBUI_INTERNAL_URL`
+defaults to `http://open-webui-lti:8080` in `docker-compose-lti.yml`; clear it
+to disable chat resuming entirely.
+
 ## Deploy
 
 1. Set `LTI_PUBLIC_URL`, `LTI_GATEWAY_SECRET_KEY`, `LTI_GATEWAY_API_TOKEN`

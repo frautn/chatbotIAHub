@@ -17,6 +17,7 @@ class Settings:
     email_domain: str
     student_group: str
     models: tuple[tuple[str, str], ...] = ()
+    webui_internal_url: str = ""
 
     @property
     def secure(self) -> bool:
@@ -39,6 +40,7 @@ class Settings:
             email_domain=os.environ.get("GATEWAY_USER_EMAIL_DOMAIN", "lti.invalid"),
             student_group=os.environ.get("GATEWAY_STUDENT_GROUP", "estudiantes"),
             models=parse_models(os.environ.get("GATEWAY_MODELS", "")),
+            webui_internal_url=os.environ.get("GATEWAY_WEBUI_INTERNAL_URL", "").rstrip("/"),
         )
 
 

@@ -19,6 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Settings, load_or_create_keys, load_platforms
 from .store import LaunchStore
+from .webui_client import find_resumable_chat
 
 CLAIM = "https://purl.imsglobal.org/spec/lti/claim/"
 CLAIM_AGS = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
@@ -65,6 +66,28 @@ def user_identity(settings: Settings, iss: str, client_id: str, sub: str, name: 
     return f"lti-{digest}@{settings.email_domain}", ascii_fold(name) or "Learner"
 
 
+def resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model):
+    """Chat id to resume for this resource link, if one can be determined.
+
+    A resource link's chat id is sticky once found: the first launch after a
+    chat exists claims it, and every later launch reuses it directly.
+    """
+    record = store.find(iss, client_id, link_id, sub)
+    if not record:
+        return None
+    if record["chat_id"]:
+        return record["chat_id"]
+    if not settings.webui_internal_url:
+        return None
+    exclude = store.claimed_chat_ids(sub, link_id)
+    chat_id = find_resumable_chat(
+        settings.webui_internal_url, identity[0], identity[1], model, exclude
+    )
+    if chat_id:
+        store.set_chat_id(iss, client_id, link_id, sub, chat_id)
+    return chat_id
+
+
 def create_app(settings: Settings | None = None) -> Flask:
     settings = settings or Settings.from_env()
     app = Flask(__name__)
@@ -89,11 +112,15 @@ def create_app(settings: Settings | None = None) -> Flask:
     signer = URLSafeTimedSerializer(settings.secret_key)
     launch_url = f"{settings.public_url}/lti/launch"
 
-    def sso_response(identity: tuple[str, str], model: str | None = None):
-        target = f"{settings.public_url}/"
-        if model:
-            # Open WebUI preselects this model for the new chat from the `models` query param.
-            target += f"?models={quote(model)}"
+    def sso_response(identity: tuple[str, str], model: str | None = None, chat_id: str | None = None):
+        if chat_id:
+            # Resuming a previously opened chat for this resource link.
+            target = f"{settings.public_url}/c/{chat_id}"
+        else:
+            target = f"{settings.public_url}/"
+            if model:
+                # Open WebUI preselects this model for the new chat from the `models` query param.
+                target += f"?models={quote(model)}"
         response = redirect(target)
         response.set_cookie(
             SSO_COOKIE,
@@ -179,9 +206,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             iss, client_id, deployment_id, link_id, sub, context.get("id"), data.get(CLAIM_AGS)
         )
         model = (data.get(CLAIM + "custom") or {}).get("model")
-        return sso_response(
-            user_identity(settings, iss, client_id, sub, data.get("name", "")), model
-        )
+        identity = user_identity(settings, iss, client_id, sub, data.get("name", ""))
+        chat_id = resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model)
+        return sso_response(identity, model, chat_id)
 
     @app.post("/lti/deeplink")
     def deeplink():
