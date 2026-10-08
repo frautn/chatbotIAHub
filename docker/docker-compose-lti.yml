@@ -22,7 +22,7 @@ services:
   # Student-facing Open WebUI. It trusts identity headers, so it must only be
   # reachable through the nginx auth_request front end (bound to localhost).
   open-webui-lti:
-    image: "${OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}"
+    image: "${OPENWEBUI_IMAGE_LTI:-ghcr.io/open-webui/open-webui:main}"
     container_name: openwebui-lti
     ports:
       - "127.0.0.1:${LTI_WEBUI_PORT:-3001}:8080"
