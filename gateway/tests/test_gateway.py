@@ -3,7 +3,16 @@ from unittest.mock import patch
 
 from itsdangerous import URLSafeTimedSerializer
 
-from conftest import CLAIM, CLIENT_ID, ISS, LAUNCH_URL, PUBLIC_URL, post_launch, resource_claims
+from conftest import (
+    CLAIM,
+    CLIENT_ID,
+    DEPLOYMENT_ID,
+    ISS,
+    LAUNCH_URL,
+    PUBLIC_URL,
+    post_launch,
+    resource_claims,
+)
 
 AGS = {
     "scope": ["https://purl.imsglobal.org/spec/lti-ags/scope/score"],
@@ -22,6 +31,29 @@ def test_resource_launch_sets_sso_and_auth_returns_trusted_headers(client, platf
     assert auth.headers["X-LTI-Email"].startswith("lti-")
     assert auth.headers["X-LTI-Email"].endswith("@lti.invalid")
     assert auth.headers["X-LTI-Name"] == "Ana Perez"
+    assert auth.headers["X-LTI-Group"] == "estudiantes"
+
+
+def test_auth_omits_group_header_when_student_group_is_empty(settings, platform):
+    settings.data_dir.joinpath("platforms.json").write_text(
+        json.dumps(
+            {
+                ISS: {
+                    "client_id": CLIENT_ID,
+                    "auth_login_url": f"{ISS}/auth",
+                    "auth_token_url": f"{ISS}/token",
+                    "key_set": platform.jwks,
+                    "deployment_ids": [DEPLOYMENT_ID],
+                }
+            }
+        )
+    )
+    object.__setattr__(settings, "student_group", "")
+    from lti_gateway.app import create_app
+
+    client = create_app(settings).test_client()
+    post_launch(client, platform, resource_claims())
+    assert "X-LTI-Group" not in client.get("/auth").headers
 
 
 def test_identity_is_stable_per_user(client, platform):

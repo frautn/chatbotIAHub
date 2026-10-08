@@ -10,10 +10,17 @@ Open WebUI, and AGS score submission (no automatic grading policy).
 2. The gateway validates it, stores the AGS context, and sets a signed `lti_gw`
    cookie, then redirects to `/`.
 3. nginx (`docker/nginx-lti.example.conf`) runs `auth_request` against `/auth`,
-   which returns `X-LTI-Email`/`X-LTI-Name`. nginx forwards them as
-   `X-Forwarded-Email`/`X-Forwarded-Name`, which the `open-webui-lti` container
-   trusts (`WEBUI_AUTH_TRUSTED_*`). Open WebUI creates the user on first visit.
+   which returns `X-LTI-Email`/`X-LTI-Name`/`X-LTI-Group`. nginx forwards them as
+   `X-Forwarded-Email`/`X-Forwarded-Name`/`X-Forwarded-Groups`, which the
+   `open-webui-lti` container trusts (`WEBUI_AUTH_TRUSTED_*`). Open WebUI creates
+   the user on first visit and syncs their group membership on every sign-in.
 4. The email is a stable hash of issuer + client + LTI `sub`; no real email is shared.
+5. All launching students are put in the Open WebUI group named by
+   `GATEWAY_STUDENT_GROUP` (`estudiantes` by default). **That group must already
+   exist in Open WebUI** (*Admin Panel > Groups*) — Open WebUI's trusted-header
+   group sync only adds users to groups matching an existing name, it does not
+   create them. Open WebUI also removes the user from any other group not in
+   this list, so don't reuse `estudiantes` for manual group assignments.
 
 `open-webui-lti` trusts identity headers, so it is bound to `127.0.0.1` and must
 only be reached through nginx. Keep the stock instance for administrators.

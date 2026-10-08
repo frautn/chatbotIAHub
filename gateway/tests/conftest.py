@@ -62,6 +62,7 @@ def settings(tmp_path):
         api_token="api-token",
         session_ttl=3600,
         email_domain="lti.invalid",
+        student_group="estudiantes",
     )
 
 
