@@ -1,0 +1,1 @@
+In this folder we place the code for functions, tools, filters, implemented in Open-WebUI.

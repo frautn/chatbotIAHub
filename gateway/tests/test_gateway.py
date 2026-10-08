@@ -1,3 +1,4 @@
+import hashlib
 import json
 from unittest.mock import patch
 
@@ -63,6 +64,59 @@ def test_identity_is_stable_per_user(client, platform):
     assert client.get("/auth").headers["X-LTI-Email"] == first
 
 
+def _client_with_webui_internal_url(settings, platform, url):
+    object.__setattr__(settings, "webui_internal_url", url)
+    from lti_gateway.app import create_app
+
+    settings.data_dir.joinpath("platforms.json").write_text(
+        json.dumps(
+            {
+                ISS: {
+                    "client_id": CLIENT_ID,
+                    "auth_login_url": f"{ISS}/auth",
+                    "auth_token_url": f"{ISS}/token",
+                    "key_set": platform.jwks,
+                    "deployment_ids": [DEPLOYMENT_ID],
+                }
+            }
+        )
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_relaunch_resumes_previous_chat(settings, platform):
+    client = _client_with_webui_internal_url(settings, platform, "http://openwebui.internal")
+
+    with patch("lti_gateway.app.find_resumable_chat", return_value="chat-123") as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked.assert_called_once()
+
+    # The chat id is now stored on the resource link: no lookup is needed again.
+    with patch("lti_gateway.app.find_resumable_chat") as mocked_again:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked_again.assert_not_called()
+
+
+def test_no_chat_to_resume_falls_back_to_new_chat(settings, platform):
+    client = _client_with_webui_internal_url(settings, platform, "http://openwebui.internal")
+
+    with patch("lti_gateway.app.find_resumable_chat", return_value=None) as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/"
+    mocked.assert_called_once()
+
+
+def test_resume_lookup_skipped_without_webui_internal_url(client, platform):
+    with patch("lti_gateway.app.find_resumable_chat") as mocked:
+        response = post_launch(client, platform, resource_claims())
+    assert response.headers["Location"] == f"{PUBLIC_URL}/"
+    mocked.assert_not_called()
+
+
 def test_auth_rejects_missing_and_forged_sessions(client):
     assert client.get("/auth").status_code == 401
     forged = URLSafeTimedSerializer("wrong").dumps({"email": "a@b", "name": "x"}, salt="sso")
@@ -120,6 +174,7 @@ def test_deep_linking_round_trip(client, platform):
     response = post_launch(client, platform, deep_link_claims())
     assert response.status_code == 200
     state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+    assert "<select name=\"model\">" not in response.get_data(as_text=True)
 
     result = client.post(
         "/lti/deeplink",
@@ -135,6 +190,78 @@ def test_deep_linking_round_trip(client, platform):
     assert "custom" not in item
     assert item["lineItem"]["scoreMaximum"] == 10
     assert claims["https://purl.imsglobal.org/spec/lti-dl/claim/data"] == "opaque"
+
+
+def _client_with_models(settings, platform, models):
+    object.__setattr__(settings, "models", models)
+    from lti_gateway.app import create_app
+
+    settings.data_dir.joinpath("platforms.json").write_text(
+        json.dumps(
+            {
+                ISS: {
+                    "client_id": CLIENT_ID,
+                    "auth_login_url": f"{ISS}/auth",
+                    "auth_token_url": f"{ISS}/token",
+                    "key_set": platform.jwks,
+                    "deployment_ids": [DEPLOYMENT_ID],
+                }
+            }
+        )
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_deep_link_form_offers_configured_models(settings, platform):
+    client = _client_with_models(
+        settings, platform, (("cinematica-ej-1", "Cinemática 1"), ("cinematica-ej-2", "Cinemática 2"))
+    )
+    response = post_launch(client, platform, deep_link_claims())
+    html = response.get_data(as_text=True)
+    assert '<option value="cinematica-ej-1">Cinemática 1</option>' in html
+    assert '<option value="cinematica-ej-2">Cinemática 2</option>' in html
+
+
+def test_deeplink_stores_chosen_model_as_custom_param_and_launch_preselects_it(settings, platform):
+    import re
+
+    import jwt
+
+    client = _client_with_models(settings, platform, (("cinematica-ej-1", "Cinemática 1"),))
+    response = post_launch(client, platform, deep_link_claims())
+    state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+
+    result = client.post(
+        "/lti/deeplink",
+        data={"state": state, "title": "Tutor", "model": "cinematica-ej-1"},
+    )
+    assert result.status_code == 200
+    token = re.search(r'name="JWT"\s+value="([^"]+)"', result.get_data(as_text=True)).group(1)
+    claims = jwt.decode(token, options={"verify_signature": False})
+    item = claims["https://purl.imsglobal.org/spec/lti-dl/claim/content_items"][0]
+    assert item["custom"] == {"model": "cinematica-ej-1"}
+
+    launch_response = post_launch(
+        client, platform, resource_claims(**{CLAIM + "custom": {"model": "cinematica-ej-1"}})
+    )
+    assert launch_response.status_code == 302
+    assert launch_response.headers["Location"] == f"{PUBLIC_URL}/?models=cinematica-ej-1"
+
+
+def test_deeplink_rejects_unknown_model(settings, platform):
+    import re
+
+    client = _client_with_models(settings, platform, (("cinematica-ej-1", "Cinemática 1"),))
+    response = post_launch(client, platform, deep_link_claims())
+    state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+
+    result = client.post(
+        "/lti/deeplink",
+        data={"state": state, "title": "Tutor", "model": "not-a-real-model"},
+    )
+    assert result.status_code == 400
 
 
 def test_deeplink_rejects_bad_state(client):
@@ -178,6 +305,52 @@ def test_scores_are_sent_to_platform_with_stored_ags_claim(client, platform):
     args, kwargs = request.call_args
     assert args[1] == f"{ISS}/lineitems/1/scores"
     sent = json.loads(kwargs["data"])
+    assert sent["scoreGiven"] == 7 and sent["userId"] == "user-42"
+
+
+def test_scores_by_chat_id_resolves_lti_identifiers(client, platform, settings):
+    from lti_gateway.store import LaunchStore
+
+    post_launch(client, platform, resource_claims(**{CLAIM_AGS: AGS}))
+    LaunchStore(settings.data_dir / "gateway.sqlite3").set_chat_id(
+        ISS, CLIENT_ID, "link-1", "user-42", "chat-abc"
+    )
+    body = {"chat_id": "chat-abc", "score_given": 7, "score_maximum": 10}
+    with patch(
+        "pylti1p3.service_connector.ServiceConnector.make_service_request", return_value={}
+    ) as request:
+        response = client.post(
+            "/api/scores", json=body, headers={"Authorization": "Bearer api-token"}
+        )
+    assert response.status_code == 204
+    sent = json.loads(request.call_args.kwargs["data"])
+    assert sent["scoreGiven"] == 7 and sent["userId"] == "user-42"
+
+
+def test_scores_by_unknown_chat_id_is_404(client):
+    body = {"chat_id": "nope", "score_given": 5, "score_maximum": 10}
+    response = client.post("/api/scores", json=body, headers={"Authorization": "Bearer api-token"})
+    assert response.status_code == 404
+
+
+def test_scores_by_chat_id_falls_back_to_email_for_first_ever_chat(client, platform):
+    """Learner's first chat: resolve_chat_id never ran, so chat_id isn't linked yet."""
+    post_launch(client, platform, resource_claims(**{CLAIM_AGS: AGS}))
+    digest = hashlib.sha256(f"{ISS}\n{CLIENT_ID}\nuser-42".encode()).hexdigest()[:32]
+    body = {
+        "chat_id": "brand-new-chat",
+        "email": f"lti-{digest}@lti.invalid",
+        "score_given": 7,
+        "score_maximum": 10,
+    }
+    with patch(
+        "pylti1p3.service_connector.ServiceConnector.make_service_request", return_value={}
+    ) as request:
+        response = client.post(
+            "/api/scores", json=body, headers={"Authorization": "Bearer api-token"}
+        )
+    assert response.status_code == 204
+    sent = json.loads(request.call_args.kwargs["data"])
     assert sent["scoreGiven"] == 7 and sent["userId"] == "user-42"
 
 

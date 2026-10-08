@@ -15,6 +15,10 @@ services:
       GATEWAY_SESSION_TTL: "${LTI_SESSION_TTL:-28800}"
       GATEWAY_USER_EMAIL_DOMAIN: "${LTI_USER_EMAIL_DOMAIN:-lti.invalid}"
       GATEWAY_STUDENT_GROUP: "${LTI_STUDENT_GROUP:-estudiantes}"
+      GATEWAY_MODELS: "${LTI_GATEWAY_MODELS:-}"
+      # Lets the gateway resume a learner's previous chat on relaunch; reaches
+      # open-webui-lti directly (bypassing nginx) using the service name below.
+      GATEWAY_WEBUI_INTERNAL_URL: "${LTI_GATEWAY_WEBUI_INTERNAL_URL:-http://open-webui-lti:8080}"
     volumes:
       - lti-gateway-data:/data
     restart: unless-stopped

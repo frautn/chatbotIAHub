@@ -1,6 +1,8 @@
 import hashlib
 import hmac
 import unicodedata
+from datetime import datetime, timezone
+from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, make_response, redirect, render_template_string, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -18,6 +20,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Settings, load_or_create_keys, load_platforms
 from .store import LaunchStore
+from .webui_client import find_resumable_chat
 
 CLAIM = "https://purl.imsglobal.org/spec/lti/claim/"
 CLAIM_AGS = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
@@ -29,6 +32,16 @@ DEEPLINK_FORM = """<!doctype html>
 <form method="post" action="{{ action }}">
   <input type="hidden" name="state" value="{{ state }}">
   <p><label>Title<br><input name="title" value="Chatbot" required maxlength="255"></label></p>
+  {% if models %}
+  <p><label>Model<br>
+    <select name="model">
+      <option value="">(Open WebUI default)</option>
+      {% for model_id, label in models %}
+      <option value="{{ model_id }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label></p>
+  {% endif %}
   <p><label><input type="checkbox" name="graded" value="1"> Create a grade item</label></p>
   <p><label>Maximum score<br><input name="score_maximum" type="number" min="1" value="100"></label></p>
   <button type="submit">Add</button>
@@ -52,6 +65,52 @@ def ascii_fold(text: str) -> str:
 def user_identity(settings: Settings, iss: str, client_id: str, sub: str, name: str):
     digest = hashlib.sha256(f"{iss}\n{client_id}\n{sub}".encode()).hexdigest()[:32]
     return f"lti-{digest}@{settings.email_domain}", ascii_fold(name) or "Learner"
+
+
+def claim_chat_by_email(store, settings, email, chat_id):
+    """Link a chat to its launch by identity hash, for a learner's very first
+    chat: resolve_chat_id can't have recorded it yet since that only happens
+    on a *later* relaunch. Picks the most recently launched unclaimed resource
+    link for this learner, which is ambiguous if they have several ungraded
+    activities in flight (same caveat as the model-less resume fallback).
+    """
+    prefix, suffix = "lti-", f"@{settings.email_domain}"
+    if not (email.startswith(prefix) and email.endswith(suffix)):
+        return None
+    digest = email[len(prefix) : -len(suffix)]
+    for candidate in store.unclaimed():
+        expected = hashlib.sha256(
+            f"{candidate['iss']}\n{candidate['client_id']}\n{candidate['sub']}".encode()
+        ).hexdigest()[:32]
+        if expected == digest:
+            store.set_chat_id(
+                candidate["iss"], candidate["client_id"], candidate["resource_link_id"],
+                candidate["sub"], chat_id,
+            )
+            return candidate
+    return None
+
+
+def resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model):
+    """Chat id to resume for this resource link, if one can be determined.
+
+    A resource link's chat id is sticky once found: the first launch after a
+    chat exists claims it, and every later launch reuses it directly.
+    """
+    record = store.find(iss, client_id, link_id, sub)
+    if not record:
+        return None
+    if record["chat_id"]:
+        return record["chat_id"]
+    if not settings.webui_internal_url:
+        return None
+    exclude = store.claimed_chat_ids(sub, link_id)
+    chat_id = find_resumable_chat(
+        settings.webui_internal_url, identity[0], identity[1], model, exclude
+    )
+    if chat_id:
+        store.set_chat_id(iss, client_id, link_id, sub, chat_id)
+    return chat_id
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -78,8 +137,16 @@ def create_app(settings: Settings | None = None) -> Flask:
     signer = URLSafeTimedSerializer(settings.secret_key)
     launch_url = f"{settings.public_url}/lti/launch"
 
-    def sso_response(identity: tuple[str, str]):
-        response = redirect(f"{settings.public_url}/")
+    def sso_response(identity: tuple[str, str], model: str | None = None, chat_id: str | None = None):
+        if chat_id:
+            # Resuming a previously opened chat for this resource link.
+            target = f"{settings.public_url}/c/{chat_id}"
+        else:
+            target = f"{settings.public_url}/"
+            if model:
+                # Open WebUI preselects this model for the new chat from the `models` query param.
+                target += f"?models={quote(model)}"
+        response = redirect(target)
         response.set_cookie(
             SSO_COOKIE,
             signer.dumps({"email": identity[0], "name": identity[1]}, salt="sso"),
@@ -148,7 +215,10 @@ def create_app(settings: Settings | None = None) -> Flask:
                 salt="deeplink",
             )
             return render_template_string(
-                DEEPLINK_FORM, action=f"{settings.public_url}/lti/deeplink", state=state
+                DEEPLINK_FORM,
+                action=f"{settings.public_url}/lti/deeplink",
+                state=state,
+                models=settings.models,
             )
 
         if not message.is_resource_launch():
@@ -160,7 +230,10 @@ def create_app(settings: Settings | None = None) -> Flask:
         store.save(
             iss, client_id, deployment_id, link_id, sub, context.get("id"), data.get(CLAIM_AGS)
         )
-        return sso_response(user_identity(settings, iss, client_id, sub, data.get("name", "")))
+        model = (data.get(CLAIM + "custom") or {}).get("model")
+        identity = user_identity(settings, iss, client_id, sub, data.get("name", ""))
+        chat_id = resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model)
+        return sso_response(identity, model, chat_id)
 
     @app.post("/lti/deeplink")
     def deeplink():
@@ -173,6 +246,13 @@ def create_app(settings: Settings | None = None) -> Flask:
         title = request.form.get("title", "Chatbot")[:255] or "Chatbot"
 
         resource = ResourceLink().set_url(launch_url).set_title(title)
+
+        model = request.form.get("model", "").strip()
+        if model:
+            if settings.models and model not in dict(settings.models):
+                abort(400)
+            resource.set_custom_params({"model": model})
+
         if request.form.get("graded") and "ltiResourceLink" in link_settings.get(
             "accept_types", []
         ):
@@ -212,13 +292,30 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(401)
         body = request.get_json(silent=True) or {}
         try:
-            iss, client_id = body["iss"], body["client_id"]
-            link_id, sub = body["resource_link_id"], body["sub"]
             given = float(body["score_given"])
             maximum = float(body["score_maximum"])
         except (KeyError, TypeError, ValueError):
             abort(400)
-        record = store.find(iss, client_id, link_id, sub)
+
+        chat_id = body.get("chat_id")
+        if chat_id:
+            # Caller only knows the Open WebUI chat (e.g. a grading function
+            # running inside a chat), not the underlying LTI launch identifiers.
+            record = store.find_by_chat_id(chat_id)
+            if not record and body.get("email"):
+                # The learner's first-ever chat: resolve_chat_id hasn't linked it yet.
+                record = claim_chat_by_email(store, settings, body["email"], chat_id)
+            if record:
+                iss, client_id = record["iss"], record["client_id"]
+                link_id, sub = record["resource_link_id"], record["sub"]
+        else:
+            try:
+                iss, client_id = body["iss"], body["client_id"]
+                link_id, sub = body["resource_link_id"], body["sub"]
+            except KeyError:
+                abort(400)
+            record = store.find(iss, client_id, link_id, sub)
+
         if not record or not record["ags"]:
             abort(404)
 
@@ -228,6 +325,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             Grade()
             .set_score_given(given)
             .set_score_maximum(maximum)
+            # Required by the AGS spec; Moodle rejects the score with a bare 400 without it.
+            .set_timestamp(datetime.now(timezone.utc).isoformat())
             .set_activity_progress(body.get("activity_progress", "Completed"))
             .set_grading_progress(body.get("grading_progress", "FullyGraded"))
             .set_user_id(sub)

@@ -8,7 +8,8 @@ Open WebUI, and AGS score submission (no automatic grading policy).
 
 1. Moodle starts `/lti/login`, then POSTs a signed id_token to `/lti/launch`.
 2. The gateway validates it, stores the AGS context, and sets a signed `lti_gw`
-   cookie, then redirects to `/`.
+   cookie, then redirects to `/` (or `/?models=<id>` if the activity pins a
+   model, see below).
 3. nginx (`docker/nginx-lti.example.conf`) runs `auth_request` against `/auth`,
    which returns `X-LTI-Email`/`X-LTI-Name`/`X-LTI-Group`. nginx forwards them as
    `X-Forwarded-Email`/`X-Forwarded-Name`/`X-Forwarded-Groups`, which the
@@ -24,6 +25,35 @@ Open WebUI, and AGS score submission (no automatic grading policy).
 
 `open-webui-lti` trusts identity headers, so it is bound to `127.0.0.1` and must
 only be reached through nginx. Keep the stock instance for administrators.
+
+## Picking a model via Deep Linking
+
+Set `GATEWAY_MODELS` (`LTI_GATEWAY_MODELS` in `docker/.env`) to the Open WebUI
+model IDs teachers may offer, as comma-separated `id` or `id:Label` entries,
+e.g. `cinematica-ej-1:Cinemática - Ejercicio 1,cinematica-ej-2:Cinemática -
+Ejercicio 2`. When set, Moodle's "Add chatbot activity" Deep Linking form shows
+a model picker; the chosen model is stored as an LTI custom parameter on the
+resource link, and every resource launch of that activity redirects students
+straight into Open WebUI with that model preselected (`/?models=<id>`). Leave
+`GATEWAY_MODELS` empty to hide the picker and always use Open WebUI's default
+model.
+
+## Resuming a conversation
+
+The gateway remembers, per resource link + learner, the Open WebUI chat they
+used. The first time a learner launches an activity there's nothing to resume,
+so they land on a new chat as usual. From the next launch onward, the gateway
+signs in to Open WebUI on the learner's behalf (`GATEWAY_WEBUI_INTERNAL_URL`,
+reachable only inside the Docker network) to find their most recent chat and
+redirects straight to it (`/c/<chat_id>`), picking up the conversation where
+they left off.
+
+When the activity pins a model (see above), only a chat using that model is
+eligible, so distinct activities never share a conversation. Without a pinned
+model, the learner's single most recent chat is reused, which only disambiguates
+correctly if the learner has one chatbot activity. `GATEWAY_WEBUI_INTERNAL_URL`
+defaults to `http://open-webui-lti:8080` in `docker-compose-lti.yml`; clear it
+to disable chat resuming entirely.
 
 ## Deploy
 
@@ -63,6 +93,22 @@ curl -X POST http://127.0.0.1:8090/api/scores \
   -H "Authorization: Bearer $LTI_GATEWAY_API_TOKEN" -H 'Content-Type: application/json' \
   -d '{"iss":"...","client_id":"...","resource_link_id":"...","sub":"...","score_given":8,"score_maximum":10}'
 ```
+
+A caller that only knows the Open WebUI chat (e.g. an Open WebUI Function
+grading the conversation) can pass `chat_id` instead of
+`iss`/`client_id`/`resource_link_id`/`sub` — the gateway resolves the LTI
+identifiers from the same `launches` record that tracks chat resuming:
+
+```
+curl -X POST http://127.0.0.1:8090/api/scores \
+  -H "Authorization: Bearer $LTI_GATEWAY_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"chat_id":"...","score_given":8,"score_maximum":10}'
+```
+
+This only resolves once the learner's `chat_id` has been recorded, which
+requires `GATEWAY_WEBUI_INTERNAL_URL` to be set (see "Resuming a
+conversation" above) — the chat must have been reached through at least one
+resumed launch, or be set explicitly via `LaunchStore.set_chat_id`.
 
 The learner must have launched the activity at least once. The endpoint is blocked in nginx.
 
