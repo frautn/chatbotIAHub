@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import unicodedata
+from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, make_response, redirect, render_template_string, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -29,6 +30,16 @@ DEEPLINK_FORM = """<!doctype html>
 <form method="post" action="{{ action }}">
   <input type="hidden" name="state" value="{{ state }}">
   <p><label>Title<br><input name="title" value="Chatbot" required maxlength="255"></label></p>
+  {% if models %}
+  <p><label>Model<br>
+    <select name="model">
+      <option value="">(Open WebUI default)</option>
+      {% for model_id, label in models %}
+      <option value="{{ model_id }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label></p>
+  {% endif %}
   <p><label><input type="checkbox" name="graded" value="1"> Create a grade item</label></p>
   <p><label>Maximum score<br><input name="score_maximum" type="number" min="1" value="100"></label></p>
   <button type="submit">Add</button>
@@ -78,8 +89,12 @@ def create_app(settings: Settings | None = None) -> Flask:
     signer = URLSafeTimedSerializer(settings.secret_key)
     launch_url = f"{settings.public_url}/lti/launch"
 
-    def sso_response(identity: tuple[str, str]):
-        response = redirect(f"{settings.public_url}/")
+    def sso_response(identity: tuple[str, str], model: str | None = None):
+        target = f"{settings.public_url}/"
+        if model:
+            # Open WebUI preselects this model for the new chat from the `models` query param.
+            target += f"?models={quote(model)}"
+        response = redirect(target)
         response.set_cookie(
             SSO_COOKIE,
             signer.dumps({"email": identity[0], "name": identity[1]}, salt="sso"),
@@ -148,7 +163,10 @@ def create_app(settings: Settings | None = None) -> Flask:
                 salt="deeplink",
             )
             return render_template_string(
-                DEEPLINK_FORM, action=f"{settings.public_url}/lti/deeplink", state=state
+                DEEPLINK_FORM,
+                action=f"{settings.public_url}/lti/deeplink",
+                state=state,
+                models=settings.models,
             )
 
         if not message.is_resource_launch():
@@ -160,7 +178,10 @@ def create_app(settings: Settings | None = None) -> Flask:
         store.save(
             iss, client_id, deployment_id, link_id, sub, context.get("id"), data.get(CLAIM_AGS)
         )
-        return sso_response(user_identity(settings, iss, client_id, sub, data.get("name", "")))
+        model = (data.get(CLAIM + "custom") or {}).get("model")
+        return sso_response(
+            user_identity(settings, iss, client_id, sub, data.get("name", "")), model
+        )
 
     @app.post("/lti/deeplink")
     def deeplink():
@@ -173,6 +194,13 @@ def create_app(settings: Settings | None = None) -> Flask:
         title = request.form.get("title", "Chatbot")[:255] or "Chatbot"
 
         resource = ResourceLink().set_url(launch_url).set_title(title)
+
+        model = request.form.get("model", "").strip()
+        if model:
+            if settings.models and model not in dict(settings.models):
+                abort(400)
+            resource.set_custom_params({"model": model})
+
         if request.form.get("graded") and "ltiResourceLink" in link_settings.get(
             "accept_types", []
         ):

@@ -8,7 +8,8 @@ Open WebUI, and AGS score submission (no automatic grading policy).
 
 1. Moodle starts `/lti/login`, then POSTs a signed id_token to `/lti/launch`.
 2. The gateway validates it, stores the AGS context, and sets a signed `lti_gw`
-   cookie, then redirects to `/`.
+   cookie, then redirects to `/` (or `/?models=<id>` if the activity pins a
+   model, see below).
 3. nginx (`docker/nginx-lti.example.conf`) runs `auth_request` against `/auth`,
    which returns `X-LTI-Email`/`X-LTI-Name`/`X-LTI-Group`. nginx forwards them as
    `X-Forwarded-Email`/`X-Forwarded-Name`/`X-Forwarded-Groups`, which the
@@ -24,6 +25,18 @@ Open WebUI, and AGS score submission (no automatic grading policy).
 
 `open-webui-lti` trusts identity headers, so it is bound to `127.0.0.1` and must
 only be reached through nginx. Keep the stock instance for administrators.
+
+## Picking a model via Deep Linking
+
+Set `GATEWAY_MODELS` (`LTI_GATEWAY_MODELS` in `docker/.env`) to the Open WebUI
+model IDs teachers may offer, as comma-separated `id` or `id:Label` entries,
+e.g. `cinematica-ej-1:Cinemática - Ejercicio 1,cinematica-ej-2:Cinemática -
+Ejercicio 2`. When set, Moodle's "Add chatbot activity" Deep Linking form shows
+a model picker; the chosen model is stored as an LTI custom parameter on the
+resource link, and every resource launch of that activity redirects students
+straight into Open WebUI with that model preselected (`/?models=<id>`). Leave
+`GATEWAY_MODELS` empty to hide the picker and always use Open WebUI's default
+model.
 
 ## Deploy
 

@@ -120,6 +120,7 @@ def test_deep_linking_round_trip(client, platform):
     response = post_launch(client, platform, deep_link_claims())
     assert response.status_code == 200
     state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+    assert "<select name=\"model\">" not in response.get_data(as_text=True)
 
     result = client.post(
         "/lti/deeplink",
@@ -135,6 +136,78 @@ def test_deep_linking_round_trip(client, platform):
     assert "custom" not in item
     assert item["lineItem"]["scoreMaximum"] == 10
     assert claims["https://purl.imsglobal.org/spec/lti-dl/claim/data"] == "opaque"
+
+
+def _client_with_models(settings, platform, models):
+    object.__setattr__(settings, "models", models)
+    from lti_gateway.app import create_app
+
+    settings.data_dir.joinpath("platforms.json").write_text(
+        json.dumps(
+            {
+                ISS: {
+                    "client_id": CLIENT_ID,
+                    "auth_login_url": f"{ISS}/auth",
+                    "auth_token_url": f"{ISS}/token",
+                    "key_set": platform.jwks,
+                    "deployment_ids": [DEPLOYMENT_ID],
+                }
+            }
+        )
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_deep_link_form_offers_configured_models(settings, platform):
+    client = _client_with_models(
+        settings, platform, (("cinematica-ej-1", "Cinemática 1"), ("cinematica-ej-2", "Cinemática 2"))
+    )
+    response = post_launch(client, platform, deep_link_claims())
+    html = response.get_data(as_text=True)
+    assert '<option value="cinematica-ej-1">Cinemática 1</option>' in html
+    assert '<option value="cinematica-ej-2">Cinemática 2</option>' in html
+
+
+def test_deeplink_stores_chosen_model_as_custom_param_and_launch_preselects_it(settings, platform):
+    import re
+
+    import jwt
+
+    client = _client_with_models(settings, platform, (("cinematica-ej-1", "Cinemática 1"),))
+    response = post_launch(client, platform, deep_link_claims())
+    state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+
+    result = client.post(
+        "/lti/deeplink",
+        data={"state": state, "title": "Tutor", "model": "cinematica-ej-1"},
+    )
+    assert result.status_code == 200
+    token = re.search(r'name="JWT"\s+value="([^"]+)"', result.get_data(as_text=True)).group(1)
+    claims = jwt.decode(token, options={"verify_signature": False})
+    item = claims["https://purl.imsglobal.org/spec/lti-dl/claim/content_items"][0]
+    assert item["custom"] == {"model": "cinematica-ej-1"}
+
+    launch_response = post_launch(
+        client, platform, resource_claims(**{CLAIM + "custom": {"model": "cinematica-ej-1"}})
+    )
+    assert launch_response.status_code == 302
+    assert launch_response.headers["Location"] == f"{PUBLIC_URL}/?models=cinematica-ej-1"
+
+
+def test_deeplink_rejects_unknown_model(settings, platform):
+    import re
+
+    client = _client_with_models(settings, platform, (("cinematica-ej-1", "Cinemática 1"),))
+    response = post_launch(client, platform, deep_link_claims())
+    state = re.search(r'name="state" value="([^"]+)"', response.get_data(as_text=True)).group(1)
+
+    result = client.post(
+        "/lti/deeplink",
+        data={"state": state, "title": "Tutor", "model": "not-a-real-model"},
+    )
+    assert result.status_code == 400
 
 
 def test_deeplink_rejects_bad_state(client):

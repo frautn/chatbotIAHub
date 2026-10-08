@@ -15,6 +15,7 @@ services:
       GATEWAY_SESSION_TTL: "${LTI_SESSION_TTL:-28800}"
       GATEWAY_USER_EMAIL_DOMAIN: "${LTI_USER_EMAIL_DOMAIN:-lti.invalid}"
       GATEWAY_STUDENT_GROUP: "${LTI_STUDENT_GROUP:-estudiantes}"
+      GATEWAY_MODELS: "${LTI_GATEWAY_MODELS:-}"
     volumes:
       - lti-gateway-data:/data
     restart: unless-stopped

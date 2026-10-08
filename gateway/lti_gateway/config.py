@@ -16,6 +16,7 @@ class Settings:
     session_ttl: int
     email_domain: str
     student_group: str
+    models: tuple[tuple[str, str], ...] = ()
 
     @property
     def secure(self) -> bool:
@@ -37,7 +38,26 @@ class Settings:
             session_ttl=int(os.environ.get("GATEWAY_SESSION_TTL", "28800")),
             email_domain=os.environ.get("GATEWAY_USER_EMAIL_DOMAIN", "lti.invalid"),
             student_group=os.environ.get("GATEWAY_STUDENT_GROUP", "estudiantes"),
+            models=parse_models(os.environ.get("GATEWAY_MODELS", "")),
         )
+
+
+def parse_models(raw: str) -> tuple[tuple[str, str], ...]:
+    """`GATEWAY_MODELS` format: comma-separated `id` or `id:Label` entries.
+
+    These are the Open WebUI model IDs teachers may pin an activity to
+    (e.g. `cinematica-ej-1:Cinemática - Ejercicio 1`).
+    """
+    models = []
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        model_id, _, label = entry.partition(":")
+        model_id = model_id.strip()
+        if model_id:
+            models.append((model_id, label.strip() or model_id))
+    return tuple(models)
 
 
 def load_platforms(data_dir: Path) -> dict:
