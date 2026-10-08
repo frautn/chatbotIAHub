@@ -1,3 +1,4 @@
+import hashlib
 import json
 from unittest.mock import patch
 
@@ -330,6 +331,27 @@ def test_scores_by_unknown_chat_id_is_404(client):
     body = {"chat_id": "nope", "score_given": 5, "score_maximum": 10}
     response = client.post("/api/scores", json=body, headers={"Authorization": "Bearer api-token"})
     assert response.status_code == 404
+
+
+def test_scores_by_chat_id_falls_back_to_email_for_first_ever_chat(client, platform):
+    """Learner's first chat: resolve_chat_id never ran, so chat_id isn't linked yet."""
+    post_launch(client, platform, resource_claims(**{CLAIM_AGS: AGS}))
+    digest = hashlib.sha256(f"{ISS}\n{CLIENT_ID}\nuser-42".encode()).hexdigest()[:32]
+    body = {
+        "chat_id": "brand-new-chat",
+        "email": f"lti-{digest}@lti.invalid",
+        "score_given": 7,
+        "score_maximum": 10,
+    }
+    with patch(
+        "pylti1p3.service_connector.ServiceConnector.make_service_request", return_value={}
+    ) as request:
+        response = client.post(
+            "/api/scores", json=body, headers={"Authorization": "Bearer api-token"}
+        )
+    assert response.status_code == 204
+    sent = json.loads(request.call_args.kwargs["data"])
+    assert sent["scoreGiven"] == 7 and sent["userId"] == "user-42"
 
 
 def test_jwks_available_without_registered_platforms(settings):

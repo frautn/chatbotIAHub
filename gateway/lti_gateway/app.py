@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import unicodedata
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, make_response, redirect, render_template_string, request
@@ -64,6 +65,30 @@ def ascii_fold(text: str) -> str:
 def user_identity(settings: Settings, iss: str, client_id: str, sub: str, name: str):
     digest = hashlib.sha256(f"{iss}\n{client_id}\n{sub}".encode()).hexdigest()[:32]
     return f"lti-{digest}@{settings.email_domain}", ascii_fold(name) or "Learner"
+
+
+def claim_chat_by_email(store, settings, email, chat_id):
+    """Link a chat to its launch by identity hash, for a learner's very first
+    chat: resolve_chat_id can't have recorded it yet since that only happens
+    on a *later* relaunch. Picks the most recently launched unclaimed resource
+    link for this learner, which is ambiguous if they have several ungraded
+    activities in flight (same caveat as the model-less resume fallback).
+    """
+    prefix, suffix = "lti-", f"@{settings.email_domain}"
+    if not (email.startswith(prefix) and email.endswith(suffix)):
+        return None
+    digest = email[len(prefix) : -len(suffix)]
+    for candidate in store.unclaimed():
+        expected = hashlib.sha256(
+            f"{candidate['iss']}\n{candidate['client_id']}\n{candidate['sub']}".encode()
+        ).hexdigest()[:32]
+        if expected == digest:
+            store.set_chat_id(
+                candidate["iss"], candidate["client_id"], candidate["resource_link_id"],
+                candidate["sub"], chat_id,
+            )
+            return candidate
+    return None
 
 
 def resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model):
@@ -277,6 +302,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             # Caller only knows the Open WebUI chat (e.g. a grading function
             # running inside a chat), not the underlying LTI launch identifiers.
             record = store.find_by_chat_id(chat_id)
+            if not record and body.get("email"):
+                # The learner's first-ever chat: resolve_chat_id hasn't linked it yet.
+                record = claim_chat_by_email(store, settings, body["email"], chat_id)
             if record:
                 iss, client_id = record["iss"], record["client_id"]
                 link_id, sub = record["resource_link_id"], record["sub"]
@@ -297,6 +325,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             Grade()
             .set_score_given(given)
             .set_score_maximum(maximum)
+            # Required by the AGS spec; Moodle rejects the score with a bare 400 without it.
+            .set_timestamp(datetime.now(timezone.utc).isoformat())
             .set_activity_progress(body.get("activity_progress", "Completed"))
             .set_grading_progress(body.get("grading_progress", "FullyGraded"))
             .set_user_id(sub)

@@ -114,6 +114,26 @@ class LaunchStore:
                 (chat_id, iss, client_id, resource_link_id, sub),
             )
 
+    def unclaimed(self):
+        """Launches with no chat_id yet (most recent first), for matching a
+        learner's identity hash when their chat is scored before any relaunch
+        had the chance to link it (see resolve_chat_id)."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT iss, client_id, resource_link_id, sub, ags FROM launches "
+                "WHERE chat_id IS NULL AND ags IS NOT NULL ORDER BY updated DESC"
+            ).fetchall()
+        return [
+            {
+                "iss": row[0],
+                "client_id": row[1],
+                "resource_link_id": row[2],
+                "sub": row[3],
+                "ags": json.loads(row[4]) if row[4] else None,
+            }
+            for row in rows
+        ]
+
     def claimed_chat_ids(self, sub, exclude_resource_link_id):
         """Chat ids already tied to this learner's *other* resource links, to
         avoid re-claiming a chat that belongs to a different activity."""
