@@ -94,6 +94,22 @@ curl -X POST http://127.0.0.1:8090/api/scores \
   -d '{"iss":"...","client_id":"...","resource_link_id":"...","sub":"...","score_given":8,"score_maximum":10}'
 ```
 
+A caller that only knows the Open WebUI chat (e.g. an Open WebUI Function
+grading the conversation) can pass `chat_id` instead of
+`iss`/`client_id`/`resource_link_id`/`sub` — the gateway resolves the LTI
+identifiers from the same `launches` record that tracks chat resuming:
+
+```
+curl -X POST http://127.0.0.1:8090/api/scores \
+  -H "Authorization: Bearer $LTI_GATEWAY_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"chat_id":"...","score_given":8,"score_maximum":10}'
+```
+
+This only resolves once the learner's `chat_id` has been recorded, which
+requires `GATEWAY_WEBUI_INTERNAL_URL` to be set (see "Resuming a
+conversation" above) — the chat must have been reached through at least one
+resumed launch, or be set explicitly via `LaunchStore.set_chat_id`.
+
 The learner must have launched the activity at least once. The endpoint is blocked in nginx.
 
 ## Operations

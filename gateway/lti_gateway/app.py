@@ -267,13 +267,27 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(401)
         body = request.get_json(silent=True) or {}
         try:
-            iss, client_id = body["iss"], body["client_id"]
-            link_id, sub = body["resource_link_id"], body["sub"]
             given = float(body["score_given"])
             maximum = float(body["score_maximum"])
         except (KeyError, TypeError, ValueError):
             abort(400)
-        record = store.find(iss, client_id, link_id, sub)
+
+        chat_id = body.get("chat_id")
+        if chat_id:
+            # Caller only knows the Open WebUI chat (e.g. a grading function
+            # running inside a chat), not the underlying LTI launch identifiers.
+            record = store.find_by_chat_id(chat_id)
+            if record:
+                iss, client_id = record["iss"], record["client_id"]
+                link_id, sub = record["resource_link_id"], record["sub"]
+        else:
+            try:
+                iss, client_id = body["iss"], body["client_id"]
+                link_id, sub = body["resource_link_id"], body["sub"]
+            except KeyError:
+                abort(400)
+            record = store.find(iss, client_id, link_id, sub)
+
         if not record or not record["ags"]:
             abort(404)
 

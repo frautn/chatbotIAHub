@@ -83,6 +83,29 @@ class LaunchStore:
             "first_launched": row[4],
         }
 
+    def find_by_chat_id(self, chat_id):
+        """Launch context owning this Open WebUI chat, for grading callers that
+        only know the chat id (not the LTI iss/client_id/resource_link_id/sub)."""
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT iss, client_id, resource_link_id, sub, deployment_id, context_id, "
+                "ags, chat_id, first_launched FROM launches WHERE chat_id=?",
+                (chat_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "iss": row[0],
+            "client_id": row[1],
+            "resource_link_id": row[2],
+            "sub": row[3],
+            "deployment_id": row[4],
+            "context_id": row[5],
+            "ags": json.loads(row[6]) if row[6] else None,
+            "chat_id": row[7],
+            "first_launched": row[8],
+        }
+
     def set_chat_id(self, iss, client_id, resource_link_id, sub, chat_id):
         with self._connect() as db:
             db.execute(
