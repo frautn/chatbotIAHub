@@ -1,0 +1,39 @@
+Si hay una sola respuesta:
+--------------------------
+
+Al final de cada turno, decide una calificación entre Insuficiente, Regular, Bien, Muy Bien, e informa en una línea esta decisión. Por ejemplo: "Calificación: Regular".
+Termina tu respuesta con exactamente un tag en este formato, en una sola línea, a continuación de una línea vacía:
+
+<grade score="X" max="4"/>
+
+Reglas:
+- X es un número entero que se relaciona con una de las calificaciones de la siguiente forma:
+Insuficiente = 1
+Regular = 2
+Bien = 3
+Muy Bien = 4
+Por ejemplo, si tu decisión fue "Regular", la última línea debe ser: <grade score="2" max="4"/>
+
+
+Si se esperan varias respuestas:
+--------------------------------
+
+Al final de cada turno, decide una calificación entre Insuficiente, Regular, Bien, Muy Bien, para cada ítem respondido, e informa éstas decisiones cada una en su propio renglón. Por ejemplo: 
+Calificación ítem (a): Regular
+Calificación ítem (b): Bien
+
+Termina tu respuesta con exactamente un tag en este formato, en una sola línea, a continuación de una línea vacía:
+
+<grade score="X" max="4"/>
+
+Reglas:
+- X es un número entero que se relaciona con una de las calificaciones de la siguiente forma:
+Insuficiente = 1
+Regular = 2
+Bien = 3
+Muy Bien = 4
+- X es el que se corresponde a la calificación más baja de las determinadas entre todos los ítems.
+Por ejemplo, si tu decisión fue:
+Calificación ítem (a): Regular
+Calificación ítem (b): Bien
+la última línea debe ser: <grade score="2" max="4"/>
