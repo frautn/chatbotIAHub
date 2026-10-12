@@ -121,6 +121,32 @@ the student-facing openwebui-lti instance). Use nginx-lti.example.conf as the pu
 
 sudo ln -s /etc/nginx/sites-available/lti.retag.lat /etc/nginx/sites-enabled/
 
+LTI 1.1 gateway
+---------------
+Runs alongside the LTI 1.3 lti-gateway, sharing the same openwebui-lti instance/group;
+both are started together by docker-compose-lti.yml under START_LTI=true. Set the
+LTI11_* variables in docker/.env (LTI11_PUBLIC_URL, LTI11_GATEWAY_SECRET_KEY,
+LTI11_GATEWAY_API_TOKEN, LTI11_CONSUMER_KEY, LTI11_CONSUMER_SECRET, etc.).
+
+Unlike LTI 1.3 there is no dynamic registration: a consumer key/secret pair must be
+entered manually both in Moodle's "External tool" activity config and in the
+gateway's own consumers.json:
+
+1. echo '{"'"$LTI11_CONSUMER_KEY"'": "'"$LTI11_CONSUMER_SECRET"'"}' > consumers.json
+2. docker cp consumers.json lti11-gateway:/data/consumers.json
+3. docker restart lti11-gateway   # consumers.json is only read at startup
+
+In Moodle, configure the External tool manually (LTI version 1.1/1.2) with:
+- Tool URL:       https://lti1.retag.lat/lti11/launch
+- Consumer key:   $LTI11_CONSUMER_KEY
+- Shared secret:  $LTI11_CONSUMER_SECRET
+- Custom parameters (optional, to pin a model): model=<id-from-LTI11_GATEWAY_MODELS>
+
+Use nginx-lti1.retag.lat.conf (or nginx-lti11.example.conf as a generic template)
+as the public front end, proxying /lti11/ and /_lti11_auth to 127.0.0.1:8091.
+
+sudo ln -s /etc/nginx/sites-available/lti1.retag.lat /etc/nginx/sites-enabled/
+
 Running both Open WebUI instances
 ---------------------------------
 The stock (admin/professor) and LTI (student) instances share Postgres and one
