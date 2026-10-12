@@ -1,0 +1,107 @@
+\documentclass[a4paper,11pt,dvipsnames]{article}
+\usepackage[a4paper,vmargin={15mm,20mm},hmargin={20mm,15mm}, includefoot, bottom=3.5cm]{geometry}
+
+\setlength\parindent{0pt}
+
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+
+\usepackage[per-mode=fraction, separate-uncertainty=true]{siunitx}
+\usepackage{physics}
+\AtBeginDocument{\RenewCommandCopy\qty\SI}
+
+\usepackage{pgfplots}
+\usepackage{tikz}
+\tikzset{axis/.style={thick,-latex}}
+\usetikzlibrary{decorations}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{arrows}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{calc}
+\pgfplotsset{compat=newest}
+\usetikzlibrary{patterns}
+
+\tikzstyle{axisarrow} = [-{Latex[inset=0pt,length=5pt]}]
+
+\usepackage{enumerate}
+\usepackage{fancybox}
+\usepackage{fancyhdr}
+\setlength{\headheight}{60pt}
+\pagestyle{fancy}
+\fancyhead{}
+\rhead{convocatoria \Large 2026}
+\lhead{\Large FCR}
+\chead{\Large Chatbot IA Hub}
+
+\begin{document}
+\thispagestyle{fancy}
+
+\noindent
+\begin{center}
+{\LARGE \vspace*{0.5cm} Ejercicios propuestos a los estudiantes}\par\medskip \textit{(Material para docentes)}
+\end{center}
+
+\vspace{20pt}
+
+\begin{itemize}
+ 
+\item \textbf{calorimetria-001 :} Aceite y hielo, buscar masa del aceite. \par\medskip
+
+\begin{center}
+\begin{minipage}{0.60\linewidth}    
+\textbf{Ejercicio:} Un calorímetro ideal y adiabático contiene, inicialmente, una masa de aceite de oliva a $80^\circ\text{C}$. Se introduce en el calorímetro un bloque de $100\text{ g}$ de hielo a $0^\circ\text{C}$. Luego de un rato, se encuentra que el hielo se ha fundido por completo, y tanto el agua como el aceite se encuentran a $40^\circ\text{C}$. Sabiendo que el calor específico del aceite de oliva es $c_\text{aceite} = 0.4\textrm{\,cal/(g $^\circ$C)}$, determinar la masa de aceite de oliva contenida en el calorímetro.
+\end{minipage}
+\end{center}
+
+
+\item \textbf{termodinamica-001 :} Trabajo de un ciclo con proceso desconocido. \par\medskip
+
+\begin{center}
+\begin{minipage}{0.60\linewidth}
+  \textbf{Ejercicio:} La figura muestra un ciclo termodinámico para un gas ideal. Se sabe que la temperatura del gas en el estado $a$ es $260\text{ K}$, y que el gas cede $800\text{ J}$ de calor en el proceso $c\to a$. Calcular el trabajo neto realizado por el gas en el ciclo.
+  
+  \begin{center}
+  \begin{tikzpicture}[scale=1]
+    \begin{axis}[
+      axis x line=bottom,
+      axis y line=left,
+      xmin=1.5, xmax=3.5,           %min y max para los ejes, NO PARA EL DOMINIO
+      ymin=0.25, ymax=2.5, 
+      xlabel={volumen [$\si{\litre}$]},
+      ylabel={presión [atm]},
+      xtick={2,3},
+      xticklabels={$2$,$3$},
+      ytick={0.75,2},
+      yticklabels={$0.75$,$2$}
+      ]
+    % \draw [color=blue, very thick][-latex](160pt,20pt)..controls(100pt,25pt) and (60pt,45pt)..(42pt,58pt);
+    \draw [color=blue, very thick][-latex](2,2)--(2.5,2);
+    \draw [color=blue, very thick](2.5,2)--(3,2);
+    \draw [color=blue, very thick][-latex] (2,0.75)--(2,1.5);
+    \draw [color=blue, very thick] (2,1.5)--(2,2);
+
+    % Parábola de c (3,2) a a (2,0.75): P(V) = 0.25*V^2 - 0.25
+    \addplot [color=blue, very thick, latex-, samples=50, domain=2.5:3] {1.25*(x-2)^2 + 0.75};
+    \addplot [color=blue, very thick, samples=50, domain=2:2.5] {1.25*(x-2)^2 + 0.75};
+
+    \draw [dashed] (2,0)--(2,0.75);
+    \draw [dashed] (3,0)--(3,2);
+    \draw [dashed] (0,0.75)--(2,0.75);
+    \draw [dashed] (0,2)--(2,2);
+    \filldraw(2,0.75)circle(2pt) (2,2)circle (2pt)(3,2)circle(2pt);
+    \draw (2,0.75) node [below left] {$a$};
+    \draw (2,2) node [above left] {$b$};
+    \draw (3,2) node [above right] {$c$};
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+
+\end{minipage}
+\end{center}
+
+\end{itemize}
+  
+\end{document}
