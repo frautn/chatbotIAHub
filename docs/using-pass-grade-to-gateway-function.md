@@ -1,9 +1,3 @@
-Updated todo list
-
-Read 
-
-Read 
-
 A filter is not called by the model. It runs after each response and looks for a tag in the model's output. So you need to instruct the model, through the system prompt, to emit that exact tag.
 
 **1. Enable the filter**
