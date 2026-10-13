@@ -46,13 +46,56 @@ Descripción de la figura que ve el estudiante:
 </ejercicio>
 
 <soluciones_de_referencia>
-## Método 1
-### 1. Identificación de los estados y temperaturas
+## Método 1: sin utilizar el número de moles (n) explícitamente
+### 1. Fórmula para el trabajo neto en el ciclo
 
-Como se trata de un gas ideal, aplicamos la ecuación de estado $PV=nRT$.  
-A partir de los datos del estado $a$ podemos relacionar las temperaturas de los otros estados sin necesidad de calcular $n$ por separado (aunque sí lo haremos al final para obtener joules).
+$$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}$$
 
-**Proceso $a \to b$ (isocórico, $V=\text{cte}$):**
+### 2. Proceso $a \to b$ (isocórico, $V=\text{cte}$):
+$$W_{ab}=0$$
+
+### 3. Proceso $b \to c$ (isobárico, $P=\text{cte}$):
+
+$$W_{bc}=P_b(V_c-V_b)=2\;\text{atm}\times(3-2)\;\text{L}=2\;\text{L·atm}=202.6\;\text{J}$$
+
+### 4. Proceso $c \to a$ (curva desconocida):
+
+No se conoce la función que describe la curva, por lo que no se puede calcular el trabajo directamente. Sin embargo, se puede utilizar la primera ley de la termodinámica y los datos de calor proporcionados para determinar el trabajo.
+
+Dado que el gas cede $800\text{ J}$ de calor en el proceso $c\to a$, tenemos:
+$$Q_{ca}=-800\;\text{J}$$
+
+Por la primera ley de la termodinámica:
+$$W_{\text{ca}}=Q_{\text{ca}}-\Delta U_{ca}$$
+$$W_{\text{ca}}=-800-\Delta U_{ca}$$
+
+Podemos determinar $\Delta U_{ca}$ utilizando la relación entre la energía interna y la temperatura para un gas ideal monoatómico:
+$$\Delta U_{ca}=n\frac{3}{2}R(T_a-T_c)$$
+$$\Delta U_{ca}=\frac{3}{2}(nRT_a-nRT_c)$$
+
+Según la ecuación de estado del gas ideal, $nRT=P V$, podemos escribir:
+$$\Delta U_{ca}=\frac{3}{2}(P_aV_a-P_cV_c)$$
+
+Sustituyendo los valores conocidos:
+$$\Delta U_{ca}=\frac{3}{2}((0.75\;\text{atm}\times 2\;\text{L})-(2\;\text{atm}\times 3\;\text{L}))=\frac{3}{2}(1.5-6)\;\text{L·atm}=\frac{3}{2}(-4.5)\;\text{L·atm}=-6.75\;\text{L·atm} = -6.75\times 101.3\;\text{J}\approx -683.775\;\text{J}$$
+
+Reemplazando en el primer principio de la termodinámica:
+$$W_{ca}=-800-(-683.775)\;\text{J}\approx -116.225\;\text{J}$$
+
+### 5. Trabajo neto en el ciclo
+
+$$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}=0+202.6+(-116.225)\;\text{J}\approx 86.375\;\text{J}$$
+
+### 6. Respuesta
+El trabajo neto realizado por el gas en un ciclo completo es:
+$$W_{\text{neto}}\approx 86.375\;\text{J}$$
+
+## Método 2: calculando las temperaturas
+### 1. Fórmula para el trabajo neto en el ciclo
+
+$$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}$$
+
+### 2. Proceso $a \to b$ (isocórico, $V=\text{cte}$):
 $$\frac{P_a}{T_a}=\frac{P_b}{T_b}\quad\Longrightarrow\quad 
 T_b=T_a\frac{P_b}{P_a}=260\,\text{K}\times\frac{2}{0.75}=\frac{2080}{3}\,\text{K}\approx 693.3\,\text{K}$$
 
