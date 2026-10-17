@@ -46,7 +46,8 @@ Descripción de la figura que ve el estudiante:
 </ejercicio>
 
 <soluciones_de_referencia>
-## Método 1: sin utilizar el número de moles (n) explícitamente
+Los diferentes métodos pueden llegar a respuestas numéricas ligeramente diferentes debido a las aproximaciones y conversiones utilizadas.
+## Método 1: sin utilizar el número de moles (n) explícitamente, calculando los trabajos
 ### 1. Fórmula para el trabajo neto en el ciclo
 
 $$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}$$
@@ -90,12 +91,11 @@ $$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}=0+202.6+(-116.225)\;\text{J}\approx 86.37
 El trabajo neto realizado por el gas en un ciclo completo es:
 $$W_{\text{neto}}\approx 86.375\;\text{J}$$
 
-## Método 2: calculando las temperaturas
-### 1. Fórmula para el trabajo neto en el ciclo
+---
 
-$$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}$$
+## Método 2: calculando las temperaturas y los calores
 
-### 2. Proceso $a \to b$ (isocórico, $V=\text{cte}$):
+### 1. Proceso $a \to b$ (isocórico, $V=\text{cte}$):
 $$\frac{P_a}{T_a}=\frac{P_b}{T_b}\quad\Longrightarrow\quad 
 T_b=T_a\frac{P_b}{P_a}=260\,\text{K}\times\frac{2}{0.75}=\frac{2080}{3}\,\text{K}\approx 693.3\,\text{K}$$
 
@@ -106,26 +106,23 @@ T_c=T_b\frac{V_c}{V_b}=\frac{2080}{3}\,\text{K}\times\frac{3}{2}=1040\,\text{K}$
 Verificación rápida con la ley de los gases ideales:
 $$\frac{P_cV_c}{P_aV_a}=\frac{2\cdot 3}{0.75\cdot 2}=4=\frac{T_c}{T_a}\quad\checkmark$$
 
----
 
 ### 2. Calor en los procesos $a\to b$ y $b\to c$
 
 Para un gas ideal monoatómico:
 $$C_V=\frac{3}{2}R,\qquad C_P=\frac{5}{2}R$$
 
-Calculemos la constante $nR$ a partir del estado $a$ (conviniendo $1\;\text{L·atm}=101.325\;\text{J}$):
-$$P_aV_a=(0.75)(2)=1.5\;\text{L·atm}=151.99\;\text{J}$$
-$$\Rightarrow\quad nR=\frac{P_aV_a}{T_a}=\frac{151.99}{260}=0.5846\;\text{J/K}$$
+Calculemos el número de moles $n$ a partir del estado $a$ usando la ecuación de los gases ideales:
+$$n=\frac{P_aV_a}{R T_a}=\frac{(0.75)(2)}{(0.082) (260)}\approx 0.0704\;\text{mol}$$
 
-**Proceso $a\to b$ (isocórico):** el trabajo es cero, luego $Q_{ab}=\Delta U_{ab}$.
-$$Q_{ab}=nC_V(T_b-T_a)=\frac{3}{2}(nR)(T_b-T_a)
-=\frac{3}{2}(0.5846)(693.3-260)=379.97\;\text{J}$$
+**Proceso $a\to b$ (isocórico):**
+$$Q_{ab}=nC_V(T_b-T_a)=\frac{3}{2}nR(T_b-T_a)
+=\frac{3}{2}(0.0704\times 8.314)(693.3-260)\approx 380.4\;\text{J}$$
 
 **Proceso $b\to c$ (isobárico):**
 $$Q_{bc}=nC_P(T_c-T_b)=\frac{5}{2}(nR)(T_c-T_b)
-=\frac{5}{2}(0.5846)(1040-693.3)=506.63\;\text{J}$$
+=\frac{5}{2}(0.0704\times 8.314)(1040-693.3)\approx 507.3\;\text{J}$$
 
----
 
 ### 3. Primera ley aplicada al ciclo completo
 
@@ -139,27 +136,44 @@ El problema nos dice que el gas **cede** $800\;\text{J}$ en el proceso $c\to a$;
 $$Q_{ca}=-800\;\text{J}$$
 
 Por tanto:
-$$W_{\text{neto}}=379.97\;\text{J}+506.63\;\text{J}-800\;\text{J}$$
+$$W_{\text{neto}}=380.4\;\text{J}+507.3\;\text{J}-800\;\text{J}$$
 
-$$\boxed{W_{\text{neto}}\approx 86.6\;\text{J}}$$
+$$\boxed{W_{\text{neto}}\approx 87.7\;\text{J}}$$
 
 ---
-## Método 2
+## Método 3: mismo razonamiento que el método 2 pero sin calcular el número de moles ni las temperaturas
 
-Podemos llegar al mismo resultado **sin conocer la ecuación de la curva $c\to a$**, calculando los trabajos parciales:
+### 1. Calor en los procesos $a\to b$ y $b\to c$
 
-* **$a\to b$ (isocórico):** $W_{ab}=0$
-* **$b\to c$ (isobárico):**  
-  $$W_{bc}=P_b(V_c-V_b)=2\;\text{atm}\times(3-2)\;\text{L}=2\;\text{L·atm}=202.65\;\text{J}$$
+Para un gas ideal monoatómico:
+$$C_V=\frac{3}{2}R,\qquad C_P=\frac{5}{2}R$$
 
-* **$c\to a$:** usamos la primera ley en este tramo.  
-  La energía interna solo depende de la temperatura:
-  $$\Delta U_{ca}=nC_V(T_a-T_c)=\frac{3}{2}(0.5846)(260-1040)=-683.94\;\text{J}$$
-  Entonces:
-  $$W_{ca}=Q_{ca}-\Delta U_{ca}=(-800)-(-683.94)=-116.06\;\text{J}$$
+Usaremos la conversión $1\;\text{atm.L}\approx 101.3\;\text{J}$.
 
-Sumando:
-$$W_{\text{neto}}=W_{ab}+W_{bc}+W_{ca}=0+202.65-116.06\approx 86.6\;\text{J}$$
+**Proceso $a\to b$ (isocórico):**
+$$Q_{ab}=nC_V(T_b-T_a)=\frac{3}{2}nR(T_b-T_a)=\frac{3}{2}(P_bV_b-P_aV_a)=\frac{3}{2}(2\cdot 2-0.75\cdot 2)=3.75\;\text{atm.L}\approx 379.875\;\text{J}$$
+
+**Proceso $b\to c$ (isobárico):**
+$$Q_{bc}=nC_P(T_c-T_b)=\frac{5}{2}(nR)(T_c-T_b)
+=\frac{5}{2}(P_cV_c-P_bV_b)=\frac{5}{2}(2\cdot 3-2\cdot 2)=5\;\text{atm.L}\approx 506.5\;\text{J}$$
+
+
+### 3. Primera ley aplicada al ciclo completo
+
+En cualquier ciclo termodinámico la variación neta de energía interna es cero:
+$$\Delta U_{\text{ciclo}}=0$$
+
+Por la primera ley de la termodinámica:
+$$W_{\text{neto}}=Q_{\text{neto}}=Q_{ab}+Q_{bc}+Q_{ca}$$
+
+El problema nos dice que el gas **cede** $800\;\text{J}$ en el proceso $c\to a$; por convención de signos (calor que sale del sistema):
+$$Q_{ca}=-800\;\text{J}$$
+
+Por tanto:
+$$W_{\text{neto}}=379.875\;\text{J}+506.5\;\text{J}-800\;\text{J}$$
+
+$$\boxed{W_{\text{neto}}\approx 86.4\;\text{J}}$$
+
 </soluciones_de_referencia>
 
 <rubrica>
@@ -167,12 +181,12 @@ No está definida, decidir la calificación sin rúbrica.
 </rubrica>
 
 <proceso_de_evaluacion>
-Al recibir la entrega manuscrita (transcrita o en imagen) del estudiante:
-1. Revisa si planteó los dos procesos de absorción de calor del hielo (fusión a $0^\circ\text{C}$ + calentamiento a $40^\circ\text{C}$).
-2. Verifica si justificó verbalmente o mediante principios físicos cada paso.
-3. Asigna la puntuación en base a la rúbrica de 10 puntos.
-4. Genera la respuesta comenzando obligatoriamente con `Calificación: X/10` (o el formato equivalente acordado). X debe ser un número entero, redondeando si es necesario.
-5. Si la explicación requiere mejoras (incluso si llegó a $750\text{ g}$), formula preguntas socráticas que lo obliguen a definir qué representa cada término y por qué el sistema se comporta de esa forma.
+Al recibir la entrega del estudiante:
+1. Revisa el razonamiento del estudiante y verifica si los cálculos son consistentes con los principios de la termodinámica, siguiendo los métodos presentados en las soluciones de referencia.
+2. Califica la entrega siguiendo la rúbrica.
+3. Comienza la respuesta con `Calificación: X/10`, donde X es la puntuación asignada.
+4. Justifica brevemente la calificación otorgada, mencionando aciertos y errores principales.
+5. Invita al estudiante a realizar una nueva entrega si es necesario.
 6. Agrega la línea en blanco y finaliza con el tag `<grade score="X" max="10"/>`.
 </proceso_de_evaluacion>
 </system_instructions>
