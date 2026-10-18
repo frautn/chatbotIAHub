@@ -41,7 +41,7 @@
 
 \noindent
 \begin{center}
-{\LARGE \vspace*{0.5cm} Ejercicios propuestos a los estudiantes}\par\medskip \textit{(Material para docentes)}
+{\LARGE \vspace*{0.5cm} Ejercicios y preguntas}\par\medskip \textit{(Material para docentes)}
 \end{center}
 
 \vspace{20pt}
@@ -101,6 +101,45 @@
 
 \end{minipage}
 \end{center}
+
+\newpage
+  
+\item \textbf{termodinamica-002:} (\textit{Argumentar}) Comparar calores en dos trayectorias entre mismos estados. \par\medskip
+
+  \begin{center}
+  \begin{minipage}{0.60\linewidth}
+  \textbf{Pregunta:} Un gas ideal monoatómico evoluciona entre los estados $a$ y $c$ por dos trayectorias diferentes. La trayectoria $1$ pasa por el estado intermedio $b$, mientras que la trayectoria $2$ es directa de $a$ a $c$. ¿En cuál de las dos trayectorias el gas intercambia más calor?
+
+  \begin{center}
+  \begin{tikzpicture}[scale=1]
+    \begin{axis}[
+      axis x line=bottom,
+      axis y line=left,
+      xmin=0, xmax=5.5,
+      ymin=0.5, ymax=2.5, 
+      xlabel={volumen},
+      ylabel={presión},
+      xtick={},
+      xticklabels={},
+      ytick={},
+      yticklabels={}
+      ]
+    \draw [color=blue, very thick][-latex](1,2)--(3.5,2);
+    \draw [color=blue, very thick](3.5,2)--(5,2);
+    \draw [color=blue, very thick][-latex] (5,2)--(5,1.5);
+    \draw [color=blue, very thick] (5,1.5)--(5,1);
+    \draw [color=blue, very thick][-latex] (1,2)--(3,1.5);
+    \draw [color=blue, very thick](3,1.5)--(5,1);
+
+    \filldraw(1,2)circle(2pt) (5,2)circle (2pt)(5,1)circle(2pt);
+    \draw (3,2) node [above] {$1$};
+    \draw (5,1.35) node [right] {$1$};
+    \draw (3,1.25) node [above] {$2$};
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+  \end{minipage}
+  \end{center}
 
 \end{itemize}
   
