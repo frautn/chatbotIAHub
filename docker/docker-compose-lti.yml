@@ -59,6 +59,7 @@ services:
     environment:
       DEFAULT_LOCALE: "${DEFAULT_LOCALE:-es-ES}"
       DEFAULT_INTERFACE_SETTINGS: "${DEFAULT_INTERFACE_SETTINGS:-{\"language\": \"es-ES\"}}"
+      ENABLE_TITLE_GENERATION: "False"
       DATABASE_URL: "${DATABASE_URL:-postgresql://webui_user:some_strong_password@host.docker.internal:5432/webui_db}"
       OPENAI_API_BASE_URL: "${OPENAI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
