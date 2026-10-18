@@ -26,4 +26,4 @@ if [[ -x "$moodle_docker_bin" && -d "$MOODLE_DEV_SRC_DIR" ]]; then
     "$moodle_docker_bin" stop
 fi
 
-printf 'Stopped Open WebUI, Moodle (dev), LTI gateway and PostgreSQL containers.\n'
+printf 'Stopped Open WebUI, Moodle (dev), LTI gateway, PostgreSQL and CloudBeaver containers.\n'

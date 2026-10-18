@@ -8,4 +8,4 @@ docker compose -f "$script_dir/docker-compose-moodle.yml" stop
 docker compose -f "$script_dir/docker-compose-lti.yml" stop
 docker compose -f "$script_dir/docker-compose-postgres.yml" stop
 
-printf 'Stopped Open WebUI, Moodle, LTI gateway and PostgreSQL containers.\n'
+printf 'Stopped Open WebUI, Moodle, LTI gateway, PostgreSQL and CloudBeaver containers.\n'

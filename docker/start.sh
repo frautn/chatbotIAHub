@@ -41,7 +41,7 @@ case "$start_postgres" in
     docker compose -f "$script_dir/docker-compose-postgres.yml" up -d --wait
     ;;
   0|false|FALSE|no|NO)
-    printf 'Skipping local Postgres container.\n'
+    printf 'Skipping local Postgres and CloudBeaver containers.\n'
     ;;
   *)
     printf 'START_POSTGRES must be true or false (got: %s).\n' "$start_postgres" >&2

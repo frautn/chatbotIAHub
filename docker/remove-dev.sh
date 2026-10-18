@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Removes containers/networks started by start-dev.sh (Open WebUI, Moodle dev
-# via moodle-docker, LTI gateway, PostgreSQL). Volumes (databases, uploads) are
+# via moodle-docker, LTI gateway, PostgreSQL, CloudBeaver). Volumes (databases, uploads, workspace) are
 # kept unless --volumes is given. Separate from remove.sh, which only knows
 # about the production docker-compose-moodle.yml.
 set -euo pipefail
@@ -12,7 +12,7 @@ args=(--remove-orphans)
 case "${1:-}" in
   "") ;;
   --volumes)
-    printf 'This will DELETE all project volumes (databases, uploads, Moodle dev data).\n'
+    printf 'This will DELETE all project volumes (databases, uploads, Moodle dev data, CloudBeaver workspace).\n'
     read -r -p 'Type "delete" to continue: ' answer
     [[ "$answer" == "delete" ]] || { printf 'Aborted.\n'; exit 1; }
     args+=(--volumes)
@@ -46,4 +46,4 @@ if [[ -x "$moodle_docker_bin" && -d "$MOODLE_DEV_SRC_DIR" ]]; then
     "$moodle_docker_bin" down "${args[@]}"
 fi
 
-printf 'Removed Open WebUI, Moodle (dev), LTI gateway and PostgreSQL containers.\n'
+printf 'Removed Open WebUI, Moodle (dev), LTI gateway, PostgreSQL and CloudBeaver containers.\n'
