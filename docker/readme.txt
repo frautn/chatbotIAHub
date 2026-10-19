@@ -62,17 +62,17 @@ Then open http://127.0.0.1:8978 on your own computer. Do not expose the setup
 wizard or database administration interface without access controls.
 For VS Code Remote SSH, forwarding port 8978 in the Ports panel also works.
 
-For HTTPS access at https://pg.retag.lat, use nginx-pg.retag.lat.conf. It proxies
+For HTTPS access at https://pg.fcr.lat, use nginx-pg.fcr.lat.conf. It proxies
 to the local-only CloudBeaver port and requires nginx Basic Auth in addition to
 CloudBeaver's own login. Complete the first-run setup over the SSH tunnel first.
 Point the domain's DNS at the server, and configure certificate/key paths in the
-example to use a certificate covering pg.retag.lat. From the repository root:
+example to use a certificate covering pg.fcr.lat. From the repository root:
 
   sudo htpasswd -c /etc/nginx/cloudbeaver.htpasswd dbadmin
   sudo chown root:www-data /etc/nginx/cloudbeaver.htpasswd
   sudo chmod 640 /etc/nginx/cloudbeaver.htpasswd
-  sudo cp docker/nginx-pg.retag.lat.conf /etc/nginx/sites-available/pg.retag.lat
-  sudo ln -s /etc/nginx/sites-available/pg.retag.lat /etc/nginx/sites-enabled/
+  sudo cp docker/nginx-pg.fcr.lat.conf /etc/nginx/sites-available/pg.fcr.lat
+  sudo ln -s /etc/nginx/sites-available/pg.fcr.lat /etc/nginx/sites-enabled/
   sudo nginx -t && sudo systemctl reload nginx
 
 The htpasswd utility is provided by apache2-utils on Ubuntu; install it if
