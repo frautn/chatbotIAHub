@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Presentación del proyecto Foto, corrección y reintento, un chatbot tutor para resoluciones manuscritas de Física.">
+  <title>Foto, corrección y reintento | Chatbot IA Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.css">
+  <style>
+    :root {
+      --paper: #f3f6f2;
+      --ink: #102e2c;
+      --green: #176b55;
+      --mint: #cce8d8;
+      --orange: #ef7647;
+      --blue: #426f8c;
+      --line: #c8d5cc;
+      --muted: #526963;
+      --white: #fffefa;
+      --mono: "DM Mono", monospace;
+      --body: "DM Sans", sans-serif;
+      --display: "Space Grotesk", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--paper); }
+    .reveal {
+      color: var(--ink);
+      font-family: var(--body);
+      font-size: 24px;
+      font-weight: 400;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal .slides section {
+      height: 100%;
+      padding: 58px 76px 68px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+    .reveal h1, .reveal h2, .reveal h3, .reveal p { margin-top: 0; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      color: var(--ink);
+      font-family: var(--display);
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .reveal h2 {
+      max-width: 1080px;
+      margin: 0 0 28px;
+      font-size: 1.72em;
+      line-height: 1.08;
+    }
+    .reveal h3 { font-size: 1.04em; line-height: 1.16; }
+    .reveal p { line-height: 1.38; }
+    .reveal strong { color: var(--green); font-weight: 700; }
+    .reveal .slides section.cover {
+      display: grid !important;
+      grid-template-columns: 1.12fr .88fr;
+      align-items: center;
+      gap: 28px;
+      padding: 56px 76px 78px;
+      background: var(--ink);
+      color: var(--white);
+    }
+    .cover h1 {
+      margin: 22px 0 20px;
+      color: var(--white);
+      font-size: 2.58em;
+      line-height: .98;
+      font-weight: 700;
+    }
+    .cover h1 span { color: var(--orange); }
+    .cover .subtitle {
+      max-width: 610px;
+      margin: 0 0 28px;
+      color: #d5e3dc;
+      font-size: 1.08em;
+      line-height: 1.32;
+    }
+    .cover .byline { color: #b6cbc2; font-size: .72em; line-height: 1.55; }
+    .kicker, .eyebrow, .tag, .slide-index, .small-label {
+      font-family: var(--mono);
+      font-size: .54em;
+      font-weight: 500;
+      letter-spacing: .04em;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+    .kicker { color: #b6cbc2; }
+    .eyebrow { margin: 0 0 14px; color: var(--green); }
+    .cover-visual { position: relative; align-self: center; }
+    .cover-visual img {
+      display: block;
+      width: 100%;
+      height: 500px;
+      object-fit: cover;
+      object-position: center;
+      border: 1px solid rgba(255,255,255,.22);
+      filter: saturate(.78);
+    }
+    .cover-visual::after {
+      position: absolute;
+      top: 18px;
+      right: -15px;
+      bottom: -15px;
+      left: 18px;
+      z-index: -1;
+      border: 1px solid var(--orange);
+      content: "";
+    }
+    .photo-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      color: #b6cbc2;
+      font-family: var(--mono);
+      font-size: .52em;
+    }
+    .cover-status {
+      position: absolute;
+      bottom: 26px;
+      left: 76px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #d5e3dc;
+      font-family: var(--mono);
+      font-size: .52em;
+      text-transform: uppercase;
+    }
+    .cover-status::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--orange);
+      content: "";
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .lead { max-width: 1020px; color: var(--muted); font-size: 1.02em; }
+    .contrast {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .contrast > div { min-height: 230px; padding: 24px 30px 24px 0; }
+    .contrast > div + div { padding-left: 30px; border-left: 1px solid var(--line); }
+    .answer-mark {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin: 22px 0 16px;
+      font-family: var(--display);
+      font-size: 2.3em;
+      font-weight: 700;
+    }
+    .answer-mark b { color: var(--orange); font-size: 1.25em; }
+    .hand-photo {
+      width: 100%;
+      height: 256px;
+      object-fit: cover;
+      object-position: center 52%;
+      filter: saturate(.7);
+    }
+    .caption { margin: 10px 0 0; color: var(--muted); font-family: var(--mono); font-size: .52em; }
+    .workflow {
+      display: grid;
+      grid-template-columns: 1fr 56px 1fr 56px 1fr;
+      align-items: stretch;
+      margin-top: 40px;
+    }
+    .step { position: relative; min-height: 244px; padding: 22px 20px; border-top: 3px solid var(--green); background: var(--white); }
+    .step:nth-of-type(3) { border-color: var(--orange); }
+    .step:nth-of-type(5) { border-color: var(--blue); }
+    .step-number { color: var(--orange); font-family: var(--mono); font-size: .6em; }
+    .step h3 { margin: 26px 0 12px; font-size: 1.15em; }
+    .step p { margin-bottom: 0; color: var(--muted); font-size: .76em; }
+    .arrow { display: grid; place-items: center; color: var(--orange); font-family: var(--display); font-size: 1.8em; }
+    .callout {
+      margin-top: 22px;
+      padding: 15px 18px;
+      border-left: 4px solid var(--orange);
+      background: #fbe6dc;
+      color: var(--ink);
+      font-size: .76em;
+    }
+    .feedback {
+      padding: 28px 30px;
+      border-left: 4px solid var(--green);
+      background: var(--white);
+    }
+    .feedback .quote { margin: 12px 0 20px; font-family: var(--display); font-size: 1.18em; line-height: 1.25; }
+    .feedback .answer { color: var(--muted); font-size: .76em; }
+    .guardrails { display: grid; gap: 14px; }
+    .guardrail { display: grid; grid-template-columns: 42px 1fr; gap: 14px; align-items: start; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .guardrail .n { color: var(--orange); font-family: var(--mono); font-size: .65em; }
+    .guardrail p { margin: 0; color: var(--muted); font-size: .78em; }
+    .guardrail strong { color: var(--ink); }
+    .context-stack { display: grid; gap: 0; }
+    .context-row { display: grid; grid-template-columns: 160px 1fr; gap: 22px; align-items: center; min-height: 94px; padding: 16px 0; border-top: 1px solid var(--line); }
+    .context-row:last-child { border-bottom: 1px solid var(--line); }
+    .context-row .label { color: var(--green); font-family: var(--mono); font-size: .58em; text-transform: uppercase; }
+    .context-row p { margin: 0; font-size: .84em; }
+    .problem-sample { padding: 28px; background: var(--ink); color: var(--white); }
+    .problem-sample .small-label { color: #9fceb5; }
+    .problem-sample blockquote { margin: 22px 0; font-family: var(--display); font-size: 1.22em; line-height: 1.28; }
+    .problem-sample .formula { color: #ffd2b9; font-family: var(--mono); font-size: .78em; }
+    .system-flow { display: grid; grid-template-columns: 1fr 46px 1.1fr 46px 1fr 46px 1fr; align-items: center; margin: 40px 0 28px; }
+    .system-node { min-height: 154px; display: flex; flex-direction: column; justify-content: center; padding: 18px; border: 1px solid var(--line); background: var(--white); }
+    .system-node.highlight { border-color: var(--green); background: var(--mint); }
+    .system-node b { font-family: var(--display); font-size: 1.04em; }
+    .system-node span { margin-top: 9px; color: var(--muted); font-size: .62em; line-height: 1.3; }
+    .system-arrow { color: var(--orange); text-align: center; font-size: 1.4em; }
+    .capability-line { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .capability { padding-top: 12px; border-top: 2px solid var(--green); }
+    .capability:nth-child(2) { border-color: var(--orange); }
+    .capability:nth-child(3) { border-color: var(--blue); }
+    .capability:nth-child(4) { border-color: #8d6e35; }
+    .capability b { display: block; margin-bottom: 7px; font-size: .76em; }
+    .capability span { color: var(--muted); font-size: .63em; line-height: 1.3; }
+    .status-label { display: inline-block; padding: 6px 10px; border: 1px solid var(--green); color: var(--green); font-family: var(--mono); font-size: .54em; text-transform: uppercase; }
+    .observation { min-height: 222px; padding: 22px; background: var(--white); }
+    .observation .index { color: var(--orange); font-family: var(--mono); font-size: .58em; }
+    .observation h3 { margin: 16px 0 12px; }
+    .observation p { margin: 0; color: var(--muted); font-size: .75em; }
+    .split-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; height: 16px; margin: 22px 0 12px; background: var(--line); }
+    .split-bar span:first-child { background: var(--green); }
+    .split-bar span:last-child { background: var(--orange); }
+    .rating-row { display: flex; gap: 9px; margin: 25px 0; }
+    .rating-row span { flex: 1; padding: 14px 10px; border: 1px solid var(--line); text-align: center; font-family: var(--mono); font-size: .63em; }
+    .rating-row span:nth-child(2) { border-color: var(--orange); background: #fbe6dc; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .metric { min-height: 128px; padding: 17px; background: var(--white); }
+    .metric b { display: block; margin-bottom: 8px; font-family: var(--display); font-size: .8em; }
+    .metric span { color: var(--muted); font-size: .64em; line-height: 1.28; }
+    .metric em { color: var(--green); font-family: var(--mono); font-size: .64em; font-style: normal; }
+    .dark-slide { background: var(--ink) !important; color: var(--white); }
+    .dark-slide h2, .dark-slide h3 { color: var(--white); }
+    .dark-slide .eyebrow { color: #9fceb5; }
+    .dark-slide .lead { color: #c3d4cd; }
+    .dark-slide .open-item { border-color: #45635a; }
+    .open-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 34px; margin-top: 25px; }
+    .open-item { min-height: 93px; padding: 17px 0; border-top: 1px solid var(--line); }
+    .open-item b { display: block; margin-bottom: 6px; font-family: var(--display); font-size: .78em; }
+    .open-item span { color: var(--muted); font-size: .65em; }
+    .dark-slide .open-item span { color: #c3d4cd; }
+    .closing { display: grid !important; grid-template-columns: 1fr .72fr; align-items: center; gap: 40px; }
+    .closing h2 { font-size: 2.05em; }
+    .closing .closing-mark { color: var(--orange); font-family: var(--display); font-size: 1.1em; line-height: 1.4; }
+    .closing .author { margin-top: 34px; color: #c3d4cd; font-size: .72em; }
+    .closing-photo { width: 100%; height: 390px; object-fit: cover; filter: saturate(.72); }
+    .reveal .progress { height: 4px; color: var(--orange); }
+    .reveal .controls { color: var(--orange); }
+    .reveal .slide-number { right: 22px; bottom: 18px; padding: 5px 8px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+    @media (max-width: 700px) {
+      .reveal .slides section {
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        scrollbar-width: thin;
+      }
+      .reveal .slides section, .reveal .slides section.cover { padding: 38px 30px 55px; }
+      .reveal { font-size: 22px; }
+      .reveal .slides section.cover, .closing { grid-template-columns: 1fr; }
+      .cover h1 { font-size: 2.2em; }
+      .cover-visual img { height: 240px; }
+      .cover-status { left: 30px; }
+      .two-col, .contrast { grid-template-columns: 1fr; gap: 20px; }
+      .contrast > div { min-height: auto; padding: 18px 0; }
+      .contrast > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+      .workflow { grid-template-columns: 1fr; gap: 7px; margin-top: 22px; }
+      .step { min-height: auto; padding: 12px 16px; }
+      .step h3 { margin: 8px 0; }
+      .arrow { transform: rotate(90deg); font-size: 1.1em; }
+      .three-col { grid-template-columns: 1fr; }
+      .system-flow { grid-template-columns: 1fr; gap: 7px; margin: 20px 0; }
+      .system-node { min-height: auto; padding: 12px; }
+      .system-arrow { transform: rotate(90deg); }
+      .capability-line, .metric-grid { grid-template-columns: 1fr 1fr; }
+      .context-row { grid-template-columns: 100px 1fr; gap: 12px; }
+      .open-list { grid-template-columns: 1fr; }
+      .closing-photo { height: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section class="cover" data-background-color="#102e2c" aria-label="Portada">
+        <div>
+          <div class="kicker">UBA CHATBOT IA HUB · 2026</div>
+          <h1>FOTO<span> / </span><br>CORRECCIÓN<span> / </span><br>REINTENTO</h1>
+          <p class="subtitle">Un chatbot tutor para argumentar resoluciones manuscritas de Física</p>
+          <div class="byline">Edgardo Palazzo<br>Física e Introducción a la Biofísica · CBC · UBA</div>
+        </div>
+        <div class="cover-visual">
+          <img src="https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&amp;fit=crop&amp;w=1400&amp;q=85" alt="Mano escribiendo una resolución en una hoja de papel">
+          <div class="photo-caption"><span>RAZONAR · ESCRIBIR · REVISAR</span><span>01 / 10</span></div>
+        </div>
+        <div class="cover-status">Prototipo · En desarrollo</div>
+      </section>
+
+      <section aria-label="El problema de enseñanza">
+        <p class="eyebrow">01 · PUNTO DE PARTIDA</p>
+        <h2>Una respuesta correcta puede ocultar cómo se llegó a ella.</h2>
+        <p class="lead">En Física, elegir una opción no siempre deja ver si el concepto se comprende ni si el razonamiento puede explicarse.</p>
+        <div class="contrast">
+          <div>
+            <div class="small-label">Opción múltiple</div>
+            <div class="answer-mark"><b>B</b><span>¿Por qué?</span></div>
+            <p class="lead">La elección muestra el resultado, pero no necesariamente el camino.</p>
+          </div>
+          <div>
+            <div class="small-label">Resolución desarrollada</div>
+            <img class="hand-photo" src="https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&amp;fit=crop&amp;w=1000&amp;q=80" alt="Detalle de una persona desarrollando una respuesta manuscrita">
+            <p class="caption">Los pasos hacen visibles ideas, datos y justificaciones.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Ciclo de aprendizaje">
+        <p class="eyebrow">02 · LA EXPERIENCIA</p>
+        <h2>Una práctica breve, con lugar para volver a pensar.</h2>
+        <p class="lead">La devolución no cierra el problema: propone el próximo paso de revisión.</p>
+        <div class="workflow">
+          <div class="step"><span class="step-number">01</span><h3>Foto</h3><p>El estudiante envía su desarrollo manuscrito.</p></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="step-number">02</span><h3>Corrección</h3><p>El tutor señala aciertos, dificultades y preguntas.</p></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="step-number">03</span><h3>Reintento</h3><p>El estudiante revisa y vuelve a entregar.</p></div>
+        </div>
+        <div class="callout">Meta: practicar cómo comunicar razonamientos antes de parciales y finales.</div>
+      </section>
+
+      <section aria-label="Rol pedagógico del tutor">
+        <p class="eyebrow">03 · ROL DEL CHATBOT</p>
+        <h2>Orientar sin ocupar el lugar de quien resuelve.</h2>
+        <div class="two-col">
+          <div class="feedback">
+            <div class="small-label">Una devolución que abre trabajo</div>
+            <p class="quote">“¿Qué representa exactamente ese intervalo que calculaste?”</p>
+            <p class="answer">Pregunta orientadora basada en una interacción de prueba documentada en la propuesta.</p>
+          </div>
+          <div class="guardrails">
+            <div class="guardrail"><span class="n">A</span><p><strong>Evalúa el razonamiento.</strong> No solo el número final.</p></div>
+            <div class="guardrail"><span class="n">B</span><p><strong>Hace visibles las lagunas.</strong> Señala aciertos y aspectos a revisar.</p></div>
+            <div class="guardrail"><span class="n">C</span><p><strong>Usa preguntas socráticas.</strong> Evita resolver el ejercicio por el estudiante.</p></div>
+            <div class="guardrail"><span class="n">D</span><p><strong>Se acota a la consigna.</strong> El prompt y las referencias se preparan para cada problema.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Diseño de cada actividad">
+        <p class="eyebrow">04 · DISEÑO SITUADO</p>
+        <h2>Cada problema recibe el contexto que necesita.</h2>
+        <div class="two-col">
+          <div class="context-stack">
+            <div class="context-row"><span class="label">Consigna</span><p>El problema y lo que se espera que el estudiante explique.</p></div>
+            <div class="context-row"><span class="label">Rúbrica</span><p>Criterios docentes para valorar física y argumentación.</p></div>
+            <div class="context-row"><span class="label">Referencias</span><p>Convenciones, material de cátedra y análisis de figuras.</p></div>
+            <div class="context-row"><span class="label">Devolución</span><p>Instrucciones ajustadas al nivel de ayuda previsto.</p></div>
+          </div>
+          <div class="problem-sample">
+            <span class="small-label">Ejemplo del repositorio · Termodinámica</span>
+            <blockquote>¿En cuál trayectoria el gas intercambia más calor?</blockquote>
+            <div class="formula">Primera ley · energía interna · área en el diagrama P-V</div>
+          </div>
+        </div>
+        <div class="callout">La argumentación y la comprensión conceptual pueden requerir apoyos distintos.</div>
+      </section>
+
+      <section aria-label="Integración técnica">
+        <p class="eyebrow">05 · CÓMO SE CONECTA</p>
+        <h2>La actividad vive en Moodle; la conversación, en Open WebUI.</h2>
+        <p class="lead">Un gateway propio hace de puente y conserva el contexto de la actividad.</p>
+        <div class="system-flow">
+          <div class="system-node"><b>Moodle</b><span>Curso y actividad externa</span></div>
+          <div class="system-arrow">→</div>
+          <div class="system-node highlight"><b>Gateway LTI</b><span>Valida el lanzamiento y enlaza identidad y actividad</span></div>
+          <div class="system-arrow">→</div>
+          <div class="system-node"><b>Open WebUI</b><span>Interfaz, conversación y acceso docente</span></div>
+          <div class="system-arrow">→</div>
+          <div class="system-node"><b>Modelo</b><span>Gemini y otros modelos configurables</span></div>
+        </div>
+        <div class="capability-line">
+          <div class="capability"><b>LTI 1.3</b><span>Lanzamiento, selección de contenido y servicio de calificaciones.</span></div>
+          <div class="capability"><b>LTI 1.1</b><span>Compatibilidad con lanzamientos heredados.</span></div>
+          <div class="capability"><b>Continuidad</b><span>Reanuda la conversación asociada a estudiante y actividad.</span></div>
+          <div class="capability"><b>Nota opcional</b><span>El gateway transporta notas; no decide una política de evaluación.</span></div>
+        </div>
+      </section>
+
+      <section aria-label="Aprendizajes del prototipo">
+        <p class="eyebrow">06 · LO QUE MOSTRÓ EL PROTOTIPO</p>
+        <h2>Dos señales útiles; dos límites que hay que diseñar.</h2>
+        <div class="three-col">
+          <div class="observation"><span class="index">01 · CONFIGURACIÓN</span><h3>El modelo cambia con el entorno.</h3><p>La calidad observada en AI Studio no se reprodujo automáticamente con parámetros predeterminados en Open WebUI.</p></div>
+          <div class="observation"><span class="index">02 · IMÁGENES</span><h3>Los gráficos pueden leerse mal.</h3><p>Se añadieron descripciones explícitas, datos y análisis de diagramas en el material de referencia.</p></div>
+          <div class="observation"><span class="index">03 · INTERACCIÓN</span><h3>Las preguntas disparadoras ayudan.</h3><p>La propuesta informa buenos ejemplos y devoluciones socráticas en pruebas de prototipo.</p></div>
+        </div>
+        <div class="callout">Son observaciones de diseño inicial, no resultados de una evaluación controlada.</div>
+      </section>
+
+      <section aria-label="Evaluación pendiente">
+        <p class="eyebrow">07 · DE LA IMPRESIÓN A LA EVIDENCIA</p>
+        <h2>¿Qué significa que el chatbot corrija bien?</h2>
+        <div class="two-col">
+          <div>
+            <p class="lead">Las notas del proyecto reportan diferencias entre calificaciones dadas a una misma entrega. La consistencia necesita medirse, no suponerse.</p>
+            <div class="rating-row"><span>Misma foto</span><span>Nota 4</span><span>Nota 5</span></div>
+            <p class="caption">Ejemplo de discrepancia señalado en las notas de trabajo; no es una estadística de la cohorte.</p>
+          </div>
+          <div class="metric-grid">
+            <div class="metric"><em>01</em><b>Acuerdo</b><span>Comparar con correcciones docentes independientes.</span></div>
+            <div class="metric"><em>02</em><b>Estabilidad</b><span>Repetir la evaluación de una misma muestra.</span></div>
+            <div class="metric"><em>03</em><b>Progreso</b><span>Observar cambios entre versiones del estudiante.</span></div>
+            <div class="metric"><em>04</em><b>Utilidad</b><span>Consultar si la devolución ayuda a decidir qué revisar.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="dark-slide" data-background-color="#102e2c" aria-label="Límites y decisiones">
+        <p class="eyebrow">08 · DECISIONES ABIERTAS</p>
+        <h2>El prototipo todavía no responde todas las preguntas.</h2>
+        <p class="lead">El estado informado es diseño final y comienzo de experimentación con estudiantes.</p>
+        <div class="open-list">
+          <div class="open-item"><b>Escala y rúbrica</b><span>Los prompts muestran escalas distintas; hay que acordar criterios y conversiones.</span></div>
+          <div class="open-item"><b>Argumentar o comprender</b><span>Definir el foco y el nivel de dificultad de cada actividad.</span></div>
+          <div class="open-item"><b>Privacidad y supervisión</b><span>Precisar acceso a conversaciones, conservación de datos y protocolo docente.</span></div>
+          <div class="open-item"><b>Alcance de la evidencia</b><span>No hay aún resultados sistemáticos sobre aprendizaje ni impacto en exámenes.</span></div>
+        </div>
+      </section>
+
+      <section class="dark-slide closing" data-background-color="#102e2c" aria-label="Cierre">
+        <div>
+          <p class="eyebrow">CHATBOT IA HUB · UBA · 2026</p>
+          <h2>Devolver a tiempo.<br>Enseñar a pensar.</h2>
+          <p class="closing-mark">FOTO / CORRECCIÓN / REINTENTO</p>
+          <p class="lead">Una propuesta en experimentación para que más estudiantes puedan explicar, revisar y volver a intentar.</p>
+          <p class="author">Edgardo Palazzo<br>Física e Introducción a la Biofísica · CBC</p>
+        </div>
+        <img class="closing-photo" src="https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Escritura manuscrita durante una sesión de estudio">
+      </section>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js"></script>
+  <script>
+    const compactLayout = () => window.matchMedia("(max-width: 700px)").matches;
+    const deckSize = () => compactLayout()
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : { width: 1440, height: 810 };
+
+    Reveal.initialize({
+      ...deckSize(),
+      margin: 0.035,
+      minScale: 0.2,
+      maxScale: 1.5,
+      controls: true,
+      progress: true,
+      slideNumber: "c/t",
+      hash: true,
+      transition: "fade",
+      backgroundTransition: "fade",
+      center: false
+    });
+
+    window.addEventListener("resize", () => {
+      Reveal.configure(deckSize());
+      Reveal.layout();
+    });
+  </script>
+</body>
+</html>
