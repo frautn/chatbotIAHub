@@ -261,3 +261,32 @@ restarting one instance first so DB migrations don't race. Persistent settings
 (e.g. ENABLE_SIGNUP, DEFAULT_USER_ROLE) live in the DB and apply to both.
 
 To delete the containers: ./remove.sh (keeps data); ./remove.sh --volumes also deletes all data.
+
+Default title, follow-up and tag generation preferences
+------------------------------------------------------
+Both Open WebUI Compose services default the personal automatic-title,
+follow-up and tag generation toggles to off using DEFAULT_INTERFACE_SETTINGS:
+
+  {"language": "es-ES", "title": {"auto": false}, "autoFollowUps": false, "autoTags": false}
+
+There is no enclosing "ui" key in this variable. DEFAULT_USER_SETTINGS is not
+read by the installed Open WebUI versions (v0.12.2 and v0.12.3). If docker/.env
+sets DEFAULT_INTERFACE_SETTINGS, include title.auto, autoFollowUps and autoTags
+there too: that value replaces the Compose default rather than merging with it.
+
+ENABLE_TITLE_GENERATION=false controls the server-side title-generation task;
+ENABLE_FOLLOW_UP_GENERATION=false controls the server-side follow-up task.
+ENABLE_TAGS_GENERATION=false controls the server-side tag-generation task.
+These variables do not set the user's personal toggles.
+
+On an existing installation, saved database configuration takes precedence over
+these environment defaults. In the administrator's default Interface settings,
+turn off automatic title, follow-up and tag generation and save. This updates
+ui.default_interface_settings; rebuilding images or recreating containers alone
+does not replace that saved value. Both instances share it through PostgreSQL.
+For existing installations, also disable follow-up and tag generation in the
+admin task settings (task.follow_up.enable and task.tags.enable); their saved
+values override the environment too.
+Users without a personal override (including new users) inherit the default;
+an explicit personal choice is preserved. Reload the page to fetch new defaults.
+Do not delete volumes or disable all persistent configuration to apply this change.
