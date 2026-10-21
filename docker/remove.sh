@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Removes this project's containers and networks (Open WebUI, Moodle, LTI gateway, PostgreSQL).
+# Removes this project's containers and networks (Open WebUI, Moodle, LTI gateway, PostgreSQL, CloudBeaver).
 # Volumes (databases, uploads, Moodle data) are kept unless --volumes is given.
 set -euo pipefail
 
@@ -9,7 +9,7 @@ args=(--remove-orphans)
 case "${1:-}" in
   "") ;;
   --volumes)
-    printf 'This will DELETE all project volumes (databases, uploads, Moodle data).\n'
+    printf 'This will DELETE all project volumes (databases, uploads, Moodle data, CloudBeaver workspace).\n'
     read -r -p 'Type "delete" to continue: ' answer
     [[ "$answer" == "delete" ]] || { printf 'Aborted.\n'; exit 1; }
     args+=(--volumes)
@@ -37,4 +37,4 @@ for name in lti moodle openwebui postgres; do
   docker compose -f "$script_dir/docker-compose-$name.yml" down "${args[@]}"
 done
 
-printf 'Removed Open WebUI, Moodle, LTI gateway and PostgreSQL containers.\n'
+printf 'Removed Open WebUI, Moodle, LTI gateway, PostgreSQL and CloudBeaver containers.\n'

@@ -1,6 +1,7 @@
-It starts Postgres, waits for it to become healthy, then starts Open WebUI. Set POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and OPENAI_API_KEY in the environment before running it; OPENAI_API_BASE_URL is configurable too.
+It starts Postgres, waits for it to become healthy, starts CloudBeaver, then starts Open WebUI. Set POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and OPENAI_API_KEY in the environment before running it; OPENAI_API_BASE_URL is configurable too.
 
 For an external database, set START_POSTGRES=false and provide DATABASE_URL. The Compose files now accept these variables, and the two services remain on separate networks. Postgres credentials here configure the database; Open WebUI user accounts are created through its web interface.
+START_POSTGRES=false also skips CloudBeaver.
 
 .env
 Keep the file out of Git and restrict its permissions with chmod 600 docker/.env; it contains secrets.
@@ -28,12 +29,12 @@ Local development
 Run start-dev.sh instead of start.sh for a local dev loop:
 - Generates docker/.env for you (via generate-keys.sh) if it doesn't exist yet.
 - Defaults START_MOODLE and START_LTI to false, so a plain run only brings up
-  Postgres + Open WebUI (set them to true in docker/.env to also test Moodle/LTI).
+  Postgres + CloudBeaver + Open WebUI (set them to true in docker/.env to also test Moodle/LTI).
 - When START_MOODLE=true, it runs the stock moodlehq/moodle-docker toolkit
   (docker/moodle-docker) against docker/moodle503 instead of the production
   docker-compose-moodle.yml/Dockerfile.moodle build - see "Moodle (local
   development)" below.
-- Fails fast with a clear message naming the conflicting POSTGRES_PORT/WEBUI_PORT/
+- Fails fast with a clear message naming the conflicting POSTGRES_PORT/CLOUDBEAVER_PORT/WEBUI_PORT/
   MOODLE_DEV_WEB_PORT/LTI_GATEWAY_PORT/LTI_WEBUI_PORT if that port is already taken
   by something else on your machine, instead of docker's raw bind error. Re-running
   it against its own already-running containers is safe (not treated as a conflict).
@@ -42,6 +43,110 @@ Run start-dev.sh instead of start.sh for a local dev loop:
 Stop with ./stop-dev.sh, remove with ./remove-dev.sh (these also tear down the
 moodle-docker containers; the plain ./stop.sh / ./remove.sh only know about the
 production docker-compose-moodle.yml and won't touch them).
+
+CloudBeaver (browser database administration)
+--------------------------------------------
+CloudBeaver starts with the local PostgreSQL stack in both start.sh and
+start-dev.sh. To add it to an already-running database without recreating
+PostgreSQL, run from the repository root:
+
+  docker compose -f docker/docker-compose-postgres.yml up -d --no-deps cloudbeaver
+
+Open http://127.0.0.1:8978 and complete the first-run setup to create a
+CloudBeaver administrator account (separate from database and Open WebUI users).
+For a remote server, forward the local-only port over SSH:
+
+  ssh -N -L 8978:127.0.0.1:8978 user@your-server
+
+Then open http://127.0.0.1:8978 on your own computer. Do not expose the setup
+wizard or database administration interface without access controls.
+For VS Code Remote SSH, forwarding port 8978 in the Ports panel also works.
+
+For HTTPS access at https://pg.fcr.lat, use nginx-pg.fcr.lat.conf. It proxies
+to the local-only CloudBeaver port and requires nginx Basic Auth in addition to
+CloudBeaver's own login. Complete the first-run setup over the SSH tunnel first.
+Point the domain's DNS at the server, and configure certificate/key paths in the
+example to use a certificate covering pg.fcr.lat. From the repository root:
+
+  sudo htpasswd -c /etc/nginx/cloudbeaver.htpasswd dbadmin
+  sudo chown root:www-data /etc/nginx/cloudbeaver.htpasswd
+  sudo chmod 640 /etc/nginx/cloudbeaver.htpasswd
+  sudo cp docker/nginx-pg.fcr.lat.conf /etc/nginx/sites-available/pg.fcr.lat
+  sudo ln -s /etc/nginx/sites-available/pg.fcr.lat /etc/nginx/sites-enabled/
+  sudo nginx -t && sudo systemctl reload nginx
+
+The htpasswd utility is provided by apache2-utils on Ubuntu; install it if
+missing. Use your nginx worker group instead of www-data on other distributions.
+Use htpasswd without -c when adding users to an existing password file.
+If CLOUDBEAVER_PORT is customized, update proxy_pass in the nginx example too.
+
+Create a PostgreSQL connection with:
+- Host: postgres (the Docker service name, not localhost)
+- Port: 5432 (internal port, regardless of POSTGRES_PORT)
+- Database: the POSTGRES_DB value in docker/.env (default: webui_db)
+- Username/password: the existing database credentials configured by
+  POSTGRES_USER / POSTGRES_PASSWORD. Do not change those values to connect to
+  an existing database; changing environment variables does not reset its users.
+
+Use Test Connection before saving. A read-only query such as SELECT current_database(),
+current_user; verifies which database and role you are using. Prefer read-only
+queries when inspecting Open WebUI settings; direct edits can bypass application
+validation and may require restarting both Open WebUI instances.
+
+CLOUDBEAVER_PORT overrides the host port (default 8978); adjust the tunnel to
+match. CLOUDBEAVER_IMAGE overrides the image (default dbeaver/cloudbeaver:latest);
+pin an explicit release tag for controlled upgrades.
+CloudBeaver accounts and saved connection settings persist in the
+cloudbeaver-workspace volume. The existing stop/remove scripts include
+CloudBeaver; remove.sh --volumes and remove-dev.sh --volumes also delete its
+workspace, as well as the databases and other project data.
+
+
+Open WebUI backups (no downtime)
+--------------------------------
+From the repository root:
+
+  bash docker/backup-openwebui.sh /secure/path/to/backups
+
+The default destination is ~/backups/openwebui. The script requires Docker
+access, python3, GNU tar in the running Open WebUI container, and standard Linux
+utilities. PG_CONTAINER overrides the local PostgreSQL container name (default
+pgsql-moodlewebui). It supports this repository's named Open WebUI containers,
+their shared named data volume, and the local PostgreSQL database; external
+databases, URL query options, and alternative mount layouts fail explicitly.
+It does not source docker/.env or stop/pause/restart any services.
+
+Each private, timestamped directory contains:
+- database.dump: a custom-format pg_dump of the actual runtime Open WebUI DB.
+- data.tar.gz: all files under /app/backend/data, including uploads, vector-store
+  files and any secret-key file stored there.
+- config/: Compose files and docker/.env if present.
+- Container metadata: runtime environment (including WEBUI_SECRET_KEY), image
+  versions/digests, and volume information for both Open WebUI instances.
+- SHA256SUMS, timestamps, and RESTORE.txt with recovery guidance.
+
+WARNING: This is a live backup, NOT a single point-in-time snapshot of database
+and files. pg_dump is transactionally consistent, but uploads and vector-store
+files may change while being archived. GNU tar errors, including detected file
+changes, cause failure; a successful archive still cannot guarantee consistency
+of live vector-store files. Avoid uploads/database edits/deployments during the
+backup. For guaranteed database/file consistency, use a maintenance window or a
+coordinated storage snapshot strategy instead.
+
+Failed backups return nonzero and retain a clearly marked .partial directory;
+only verified archives get a completed directory name. Verification reads the
+database archive table of contents, reads the compressed tar and checks file
+hashes; it does not perform a test restore. Test recovery in an isolated stack.
+For integrity checks, cd into a completed backup and run:
+
+  sha256sum --check SHA256SUMS
+
+Backups include secrets and personal data and are NOT encrypted. Keep them
+outside the repository, restrict access, and keep encrypted off-server copies.
+There is no automatic retention/deletion. Database roles/passwords must be
+provisioned before restoring with --no-owner --no-privileges.
+Moodle data, LTI gateway volumes, CloudBeaver workspace, external storage/vector
+services, nginx TLS files, and Docker images are not part of this backup.
 
 
 Order of scripts
@@ -156,3 +261,32 @@ restarting one instance first so DB migrations don't race. Persistent settings
 (e.g. ENABLE_SIGNUP, DEFAULT_USER_ROLE) live in the DB and apply to both.
 
 To delete the containers: ./remove.sh (keeps data); ./remove.sh --volumes also deletes all data.
+
+Default title, follow-up and tag generation preferences
+------------------------------------------------------
+Both Open WebUI Compose services default the personal automatic-title,
+follow-up and tag generation toggles to off using DEFAULT_INTERFACE_SETTINGS:
+
+  {"language": "es-ES", "title": {"auto": false}, "autoFollowUps": false, "autoTags": false}
+
+There is no enclosing "ui" key in this variable. DEFAULT_USER_SETTINGS is not
+read by the installed Open WebUI versions (v0.12.2 and v0.12.3). If docker/.env
+sets DEFAULT_INTERFACE_SETTINGS, include title.auto, autoFollowUps and autoTags
+there too: that value replaces the Compose default rather than merging with it.
+
+ENABLE_TITLE_GENERATION=false controls the server-side title-generation task;
+ENABLE_FOLLOW_UP_GENERATION=false controls the server-side follow-up task.
+ENABLE_TAGS_GENERATION=false controls the server-side tag-generation task.
+These variables do not set the user's personal toggles.
+
+On an existing installation, saved database configuration takes precedence over
+these environment defaults. In the administrator's default Interface settings,
+turn off automatic title, follow-up and tag generation and save. This updates
+ui.default_interface_settings; rebuilding images or recreating containers alone
+does not replace that saved value. Both instances share it through PostgreSQL.
+For existing installations, also disable follow-up and tag generation in the
+admin task settings (task.follow_up.enable and task.tags.enable); their saved
+values override the environment too.
+Users without a personal override (including new users) inherit the default;
+an explicit personal choice is preserved. Reload the page to fetch new defaults.
+Do not delete volumes or disable all persistent configuration to apply this change.

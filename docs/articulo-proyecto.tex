@@ -1,0 +1,112 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.7cm]{geometry}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parskip}{0.55em}
+\setlength{\parindent}{0pt}
+\setlist{nosep,leftmargin=*}
+
+\title{Foto, corrección y reintento \textsc{EN DESARROLLO}\\
+\large Un chatbot tutor para argumentar resoluciones manuscritas de Física}
+\author{Edgardo Palazzo (epalazzo@cbc.uba.ar)}
+\date{Octubre de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este artículo describe el estado conocido del proyecto Chatbot IA Hub a partir de su propuesta para la convocatoria UBA Chatbot IA Hub 2026, las notas de diseño y los materiales disponibles en el repositorio. La experiencia busca que estudiantes de Física e Introducción a la Biofísica del Ciclo Básico Común practiquen cómo explicar por escrito sus razonamientos, mediante el envío iterativo de fotografías de resoluciones manuscritas y la recepción de calificaciones formativas y devoluciones socráticas. El dispositivo combina consignas, rúbricas y materiales específicos por problema con una integración de Moodle, LTI y Open WebUI. El proyecto está en etapa de diseño y experimentación inicial: hay decisiones de implementación y observaciones de prototipo, pero todavía no se presentan resultados sistemáticos sobre aprendizaje, consistencia de las calificaciones o impacto en los exámenes. Se resumen también los riesgos detectados y una agenda para evaluar y mejorar la experiencia.
+\end{abstract}
+
+\section{Problema de enseñanza y propósito}
+
+La experiencia parte de una dificultad observada en Física e Introducción a la Biofísica del CBC: algunos estudiantes pueden elegir la opción correcta en un problema, pero encuentran mayores obstáculos cuando deben desarrollar y comunicar por escrito el razonamiento que los llevó a esa respuesta. Una respuesta de opción múltiple, por sí sola, puede ocultar tanto una comprensión adecuada como errores conceptuales. En cambio, explicar los pasos permite hacer visibles las ideas, los datos utilizados y las justificaciones físicas. La propuesta se inscribe en la búsqueda de experiencias de inteligencia artificial diseñadas desde finalidades de enseñanza situadas, y no como una incorporación tecnológica aislada \cite{andreoli,propuesta}.
+
+La escritura de resoluciones también es relevante porque los exámenes parciales y finales pueden exigir que el estudiante comunique su razonamiento en forma manuscrita. Sin embargo, el volumen de estudiantes dificulta sostener devoluciones docentes individuales, rápidas y frecuentes. El chatbot busca ampliar las oportunidades de práctica autónoma y revisión, sin sustituir el trabajo docente ni convertir la respuesta del modelo en una evaluación definitiva.
+
+El objetivo inmediato es acompañar la elaboración de resoluciones claras, ordenadas y conceptualmente justificadas. En función de la consigna y del nivel de dificultad, la actividad puede poner mayor énfasis en la comprensión de conceptos, en la argumentación o en ambos aspectos \cite{notas}. Esta distinción importa: si un estudiante todavía no comprende el concepto central, pedirle que mejore su argumentación puede no atender su necesidad principal.
+
+\section{Diseño de la actividad}
+
+La interacción prevista es iterativa. El estudiante trabaja un problema de la materia, fotografía su desarrollo manuscrito y lo envía al chatbot. El sistema ofrece una calificación, identifica aciertos y dificultades, y propone preguntas o sugerencias para que el estudiante revise su propio trabajo. Luego puede enviar una nueva versión y continuar la conversación. La actividad se plantea como práctica formativa en momentos de estudio autónomo, después de que el tema haya sido trabajado en clase y de que exista tiempo para consultar la guía de ejercicios.
+
+Cada consigna cuenta con instrucciones de sistema y materiales de referencia propios. Estos materiales pueden incluir la resolución de referencia, criterios de evaluación, convenciones de la materia y explicaciones de figuras o gráficos. La especificidad por problema busca acotar el contexto, reducir instrucciones irrelevantes o contradictorias y evitar cargar cada consulta con una colección extensa de contenidos. También permite que el equipo docente decida qué rigor aplicar y qué tipo de devolución resulta pertinente para el objetivo de la actividad.
+
+El tutor debe evaluar el razonamiento, no solo el resultado numérico. Las instrucciones de ejemplo del repositorio le piden que señale errores y aciertos, use preguntas socráticas y evite resolver el ejercicio en lugar del estudiante. Algunos prompts exigen evidencia manuscrita; otros contemplan consultas escritas sin calificarlas. El material disponible no establece todavía una política única para esos casos, por lo que conviene explicitarla y mantenerla consistente entre actividades.
+
+\section{Plataforma e integración}
+
+La propuesta pedagógica se apoya en Open WebUI como interfaz conversacional y en Moodle como entorno de cursada. El repositorio contiene un gateway LTI que conecta las actividades externas con una instancia de Open WebUI orientada al uso estudiantil. La documentación y el código contemplan lanzamientos LTI 1.3 y LTI 1.1. Para LTI 1.3 se implementan el inicio OIDC, la validación del lanzamiento, la selección de contenido (Deep Linking) y el servicio de calificaciones AGS; la ruta LTI 1.1 atiende lanzamientos heredados y su mecanismo de resultados.
+
+En un lanzamiento, el gateway conserva el contexto de la actividad y del estudiante, genera una identidad seudónima a partir de identificadores LTI y entrega a Open WebUI los encabezados de identidad confiables. Si la actividad configura un modelo permitido, puede seleccionarlo al crear el enlace. El gateway también puede asociar y reanudar una conversación previa para la combinación de estudiante y actividad. La transferencia de una nota a Moodle es una capacidad disponible, no una política automática de calificación: requiere una fuente autorizada que envíe la puntuación y que la actividad tenga configurado el servicio correspondiente \cite{repo}.
+
+Open WebUI aporta la interfaz, la conexión con los modelos y la posibilidad de que el equipo docente revise las interacciones. La propuesta de 2026 describe una instancia personalizada y restringida a la tarea; el repositorio actual documenta además una instancia estudiantil separada, integración mediante nginx y un gateway propio. Por lo tanto, las características exactas de la interfaz desplegada pueden depender de la configuración y versión usadas. No se debe confundir la disponibilidad técnica de monitoreo con una garantía de que cada conversación sea revisada en tiempo real.
+
+\section{Observaciones iniciales y límites conocidos}
+
+La propuesta informa que, en pruebas de prototipo, el chatbot siguió las instrucciones y produjo ejemplos y preguntas disparadoras útiles. También registra dos dificultades concretas. Primero, las respuestas obtenidas con el mismo modelo pueden variar en calidad al pasar de un entorno directo como Google AI Studio a Open WebUI con parámetros predeterminados; fue necesario experimentar con la configuración del modelo. Segundo, los modelos pueden interpretar mal gráficos. Para reducir ese riesgo, se incorporaron descripciones explícitas de los diagramas, datos extraídos, relaciones entre estados y, en algunos materiales, representaciones o análisis en \LaTeX.
+
+Estas observaciones son experiencia de diseño, no una medición comparativa controlada. En particular, los documentos consultados no aportan todavía resultados que permitan afirmar que el chatbot mejora el desempeño en exámenes, que sus notas coinciden con las del equipo docente o que sus devoluciones son igualmente fiables para todas las consignas y calidades de imagen.
+
+Las notas del proyecto identifican además la consistencia como un problema a medir: una misma entrega podría recibir notas distintas en conversaciones o intentos diferentes. También plantean comparar correcciones docentes independientes con las del chatbot, incluir marcadores de salida para analizar casos de interés, y evitar que actividades demasiado fáciles o demasiado avanzadas desalienten la participación \cite{notas}. Son hipótesis y líneas de trabajo, no funciones o resultados que deban darse por resueltos.
+
+\section{Evaluación de la experiencia}
+
+Una evaluación útil debería examinar tanto la calidad de la corrección como el valor pedagógico de las iteraciones. Como primer paso, se podrían seleccionar resoluciones ya corregidas por docentes y comparar evaluaciones del chatbot y de evaluadores humanos, con criterios previamente acordados. Repetir consultas sobre una misma muestra permitiría estimar la variabilidad de las notas y de las devoluciones. El análisis debería distinguir errores de lectura de la imagen, errores conceptuales, problemas de aplicación de la rúbrica y diferencias legítimas de criterio.
+
+Entre las medidas posibles se encuentran el acuerdo entre evaluadores, la frecuencia y magnitud de discrepancias, la detección de errores conceptuales relevantes, la pertinencia de las preguntas de seguimiento y la mejora observable entre versiones de una misma resolución. Para estudiar resultados educativos, las calificaciones del chatbot a lo largo de varias actividades podrían compararse con producciones posteriores y con exámenes, teniendo en cuenta que una correlación no demostraría por sí sola que la herramienta causó una mejora.
+
+También importa conocer la experiencia de los estudiantes: si las consignas tienen dificultad adecuada, si la devolución les permite decidir qué revisar, si perseveran en las iteraciones y cuánto esfuerzo requiere cada actividad. La nota puede motivar la participación, como proponen las notas de diseño, pero no debería funcionar como único indicador de aprendizaje ni generar una confianza no validada sobre el desempeño futuro.
+
+\section{Privacidad, supervisión y alcance}
+
+El uso de una plataforma propia permite al equipo docente acceder a las interacciones y, según la configuración, intervenir y analizarlas posteriormente. Esa capacidad exige definir quién puede consultar conversaciones, con qué propósito, durante cuánto tiempo y qué datos se conservan. La identidad derivada de identificadores LTI es seudónima; no equivale a anonimización. En actividades que utilicen servicios de terceros fuera del flujo institucional, las notas proponen permitir seudónimos o credenciales no identificatorias y evitar compartir información personal innecesaria.
+
+Las notas contemplan dos líneas que pueden adoptarse por separado: una propuesta pedagógica de práctica y acompañamiento, que podría funcionar incluso si el estudiante comparte sus conversaciones por otros medios, y un sistema propio de monitoreo e intervención que también podría servir para otros usos docentes. El repositorio implementa parte de la infraestructura para la segunda línea, pero no determina por sí mismo las reglas institucionales de privacidad, las alertas ni el protocolo de intervención.
+
+El alcance inicial está centrado en resoluciones manuscritas porque ese formato seguirá siendo necesario en evaluaciones presenciales. La misma lógica podría adaptarse a código, documentos o capturas de tabletas, aunque cada formato requeriría consignas, criterios de lectura y pruebas propias. El proyecto también menciona una exploración de actividades de argumentación en electromagnetismo para ingeniería; debe entenderse como una aplicación en prueba, no como evidencia de validación general del dispositivo.
+
+\section{Decisiones pendientes}
+
+Los materiales del repositorio muestran variaciones en las escalas de calificación: aparecen categorías como Insuficiente, Regular y Bien; también una escala de cuatro niveles; y prompts con puntuación sobre diez. Antes de comparar resultados entre actividades o transferir notas, es necesario acordar una escala, definir una rúbrica interpretable y documentar cualquier conversión. La consistencia entre la devolución visible, el marcador técnico de nota y la calificación enviada a Moodle merece una prueba específica.
+
+También queda por decidir cuánto enfatizar la argumentación frente a la comprensión conceptual, qué diagnóstico inicial usar para ajustar la dificultad, si las actividades serán obligatorias o voluntarias, y cuándo debe intervenir una persona docente. El diseño de cada actividad requiere decidir además cuánto contexto de referencia incluir, cómo describir figuras, qué evidencia pedir al estudiante y qué hacer cuando una imagen sea ilegible o no corresponda al problema.
+
+\section{Conclusión}
+
+Chatbot IA Hub articula una necesidad concreta de enseñanza con un flujo de práctica iterativa: hacer visible el razonamiento escrito, recibir orientación y revisar una resolución antes de una evaluación. Su aporte potencial está en ampliar la frecuencia y disponibilidad de la retroalimentación, junto con la posibilidad de que el equipo docente configure y supervise actividades situadas. La propuesta ya cuenta con materiales de prompts y con una infraestructura de integración LTI capaz de enlazar Moodle, Open WebUI y, cuando se habilita, el envío de calificaciones.
+
+El estado que muestran las fuentes es el de un prototipo que inicia su experimentación, no el de una intervención cuya eficacia ya haya sido demostrada. El siguiente avance decisivo es convertir las observaciones prometedoras en evidencia: probar la estabilidad de las evaluaciones, calibrar las rúbricas con docentes, estudiar las sucesivas versiones de las resoluciones y revisar con estudiantes la dificultad y utilidad de las devoluciones. Esa evaluación permitirá decidir qué partes del diseño deben mantenerse, ajustarse o limitarse.
+
+\begin{thebibliography}{9}
+
+\bibitem{propuesta}
+Palazzo, E. (2026).
+\textit{Foto, corrección, reintento: Chatbot tutor para resoluciones manuscritas}.
+Propuesta presentada a la convocatoria UBA Chatbot IA Hub 2026. Material disponible en el repositorio del proyecto, archivo \texttt{docs/FOTO, CORRECCIÓN, REINTENTO - CHATBOT TUTOR PARA RESOLUCIONES MANUSCRITAS.pdf}.
+
+\bibitem{notas}
+Palazzo, E. (s. f.).
+\textit{Notas e ideas de diseño del proyecto}.
+Archivo \texttt{docs/varios.txt}.
+
+\bibitem{repo}
+Proyecto Chatbot IA Hub.
+\textit{README del proyecto, prompts pedagógicos, documentación del gateway LTI y función de envío de calificaciones}.
+Repositorio de trabajo, consultado en octubre de 2026.
+
+\bibitem{andreoli}
+Andreoli, S., Batista, A., Fucksman, B., Gladkoff, L., Martínez, K. y Perillo, L. (2022).
+\textit{Inteligencia artificial y Educación. Un marco para el análisis y la creación de experiencias en el nivel superior}.
+Citep, Universidad de Buenos Aires. \url{https://doi.org/10.13140/RG.2.2.12073.20326}
+
+\end{thebibliography}
+
+\end{document}

@@ -3,7 +3,7 @@
 #  - auto-generates docker/.env (via generate-keys.sh) on first run instead of
 #    requiring a manual step
 #  - defaults Moodle and the LTI gateway to off, so a plain run only brings up
-#    Postgres + Open WebUI (the fast dev loop)
+#    Postgres + CloudBeaver + Open WebUI (the fast dev loop)
 #  - when Moodle is enabled, uses the stock moodlehq/moodle-docker toolkit
 #    (live-mounted checkout, own Postgres/Mailpit) instead of the production
 #    docker-compose-moodle.yml/Dockerfile.moodle build
@@ -28,6 +28,7 @@ export POSTGRES_USER="${POSTGRES_USER:-webui_user}"
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-some_strong_password}"
 export POSTGRES_DB="${POSTGRES_DB:-webui_db}"
 export POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+export CLOUDBEAVER_PORT="${CLOUDBEAVER_PORT:-8978}"
 export OPENAI_API_BASE_URL="${OPENAI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export OPENWEBUI_IMAGE="${OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}"
@@ -50,7 +51,7 @@ export LTI_GATEWAY_API_TOKEN="${LTI_GATEWAY_API_TOKEN:-}"
 export LTI_GATEWAY_PORT="${LTI_GATEWAY_PORT:-8090}"
 export LTI_WEBUI_PORT="${LTI_WEBUI_PORT:-3001}"
 
-# Dev loop default: only Postgres + Open WebUI, unless .env says otherwise.
+# Dev loop default: Postgres + CloudBeaver + Open WebUI, unless .env says otherwise.
 start_postgres="${START_POSTGRES:-true}"
 start_moodle="${START_MOODLE:-false}"
 start_lti="${START_LTI:-false}"
@@ -80,7 +81,10 @@ check_port() {
 }
 
 case "$start_postgres" in
-  1|true|TRUE|yes|YES) check_port "$POSTGRES_PORT" "pgsql-moodlewebui" "POSTGRES_PORT" ;;
+  1|true|TRUE|yes|YES)
+    check_port "$POSTGRES_PORT" "pgsql-moodlewebui" "POSTGRES_PORT"
+    check_port "$CLOUDBEAVER_PORT" "pgsql-moodlewebui" "CLOUDBEAVER_PORT"
+    ;;
 esac
 check_port "$WEBUI_PORT" "openwebui-for-moodle" "WEBUI_PORT"
 case "$start_moodle" in
@@ -99,7 +103,7 @@ case "$start_postgres" in
     docker compose -f "$script_dir/docker-compose-postgres.yml" up -d --wait
     ;;
   0|false|FALSE|no|NO)
-    printf 'Skipping local Postgres container.\n'
+    printf 'Skipping local Postgres and CloudBeaver containers.\n'
     ;;
   *)
     printf 'START_POSTGRES must be true or false (got: %s).\n' "$start_postgres" >&2
@@ -159,6 +163,7 @@ esac
 printf '\nLocal dev stack is up:\n'
 printf '  Open WebUI: http://127.0.0.1:%s\n' "$WEBUI_PORT"
 [[ "$start_postgres" =~ ^(1|true|TRUE|yes|YES)$ ]] && printf '  Postgres:   postgresql://127.0.0.1:%s/%s\n' "$POSTGRES_PORT" "$POSTGRES_DB"
+[[ "$start_postgres" =~ ^(1|true|TRUE|yes|YES)$ ]] && printf '  CloudBeaver: http://127.0.0.1:%s\n' "$CLOUDBEAVER_PORT"
 if [[ "$start_moodle" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
   printf '  Moodle (dev): http://localhost:%s\n' "$MOODLE_DEV_WEB_PORT"
   printf '  Mailpit:      http://localhost:%s/_/mail\n' "$MOODLE_DEV_WEB_PORT"

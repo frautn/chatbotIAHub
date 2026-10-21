@@ -19,5 +19,18 @@ services:
       retries: 5
     restart: unless-stopped
 
+  cloudbeaver:
+    image: "${CLOUDBEAVER_IMAGE:-dbeaver/cloudbeaver:latest}"
+    container_name: cloudbeaver-moodlewebui
+    ports:
+      - "127.0.0.1:${CLOUDBEAVER_PORT:-8978}:8978"
+    volumes:
+      - cloudbeaver-workspace:/opt/cloudbeaver/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgsql-moodlewebui-data:
+  cloudbeaver-workspace:

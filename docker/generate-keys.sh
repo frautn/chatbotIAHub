@@ -8,6 +8,8 @@ cp -n .env.example .env && chmod 600 .env
 
 sed -i "s|^LTI_GATEWAY_SECRET_KEY=.*|LTI_GATEWAY_SECRET_KEY='$(openssl rand -hex 32)'|" .env
 sed -i "s|^LTI_GATEWAY_API_TOKEN=.*|LTI_GATEWAY_API_TOKEN='$(openssl rand -hex 32)'|" .env
+sed -i "s|^LTI11_GATEWAY_SECRET_KEY=.*|LTI11_GATEWAY_SECRET_KEY='$(openssl rand -hex 32)'|" .env
+sed -i "s|^LTI11_GATEWAY_API_TOKEN=.*|LTI11_GATEWAY_API_TOKEN='$(openssl rand -hex 32)'|" .env
 sed -i "s|^WEBUI_SECRET_KEY=.*|WEBUI_SECRET_KEY='$(openssl rand -hex 32)'|" .env
 
 PW=$(openssl rand -hex 32)
