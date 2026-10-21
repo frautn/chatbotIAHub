@@ -77,7 +77,15 @@ to disable chat resuming entirely.
        "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
        "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
        "deployment_ids": ["1"]
-     }
+     },
+    "https://moodle.fcr.lat": {
+    "client_id": "another_client_id",
+    "auth_login_url": "https://moodle.fcr.lat/mod/lti/auth.php",
+    "auth_token_url": "https://moodle.fcr.lat/mod/lti/token.php",
+    "key_set_url": "https://moodle.fcr.lat/mod/lti/certs.php",
+    "deployment_ids": ["1"]
+  }
+
    }
    ```
 

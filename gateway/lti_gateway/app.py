@@ -43,7 +43,7 @@ DEEPLINK_FORM = """<!doctype html>
   </label></p>
   {% endif %}
   <p><label><input type="checkbox" name="graded" value="1"> Create a grade item</label></p>
-  <p><label>Maximum score<br><input name="score_maximum" type="number" min="1" value="100"></label></p>
+  <p><label>Maximum score<br><input name="score_maximum" type="number" min="1" value="10"></label></p>
   <button type="submit">Add</button>
 </form></body></html>"""
 
@@ -257,7 +257,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             "accept_types", []
         ):
             try:
-                maximum = float(request.form.get("score_maximum", "100"))
+                maximum = float(request.form.get("score_maximum", "10"))
             except ValueError:
                 abort(400)
             if not 0 < maximum <= 1_000_000:

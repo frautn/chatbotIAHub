@@ -224,6 +224,17 @@ See ../gateway/README.md. Set START_LTI=true plus the LTI_* variables in docker/
 start.sh then builds and starts docker-compose-lti.yml (the lti-gateway service and
 the student-facing openwebui-lti instance). Use nginx-lti.example.conf as the public front end.
 
+Moodle 5.3 External tool (LTI 1.3) settings for https://lti.fcr.lat:
+- Tool URL:                 https://lti.fcr.lat/lti/launch
+- Public keyset:            https://lti.fcr.lat/lti/jwks
+- Initiate login URL:       https://lti.fcr.lat/lti/login
+- Redirection URI(s):       https://lti.fcr.lat/lti/launch
+                            https://lti.fcr.lat/lti/deeplink
+- Content selection URL:    https://lti.fcr.lat/lti/launch
+
+Set the public key type to "JWK keyset" and enable Deep Linking. These URLs are
+also available from https://lti.fcr.lat/lti/config.
+
 sudo ln -s /etc/nginx/sites-available/lti.retag.lat /etc/nginx/sites-enabled/
 
 LTI 1.1 gateway
