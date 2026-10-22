@@ -38,6 +38,96 @@ straight into Open WebUI with that model preselected (`/?models=<id>`). Leave
 `GATEWAY_MODELS` empty to hide the picker and always use Open WebUI's default
 model.
 
+## Shared-admin users-overview activity (LTI 1.3)
+
+This optional, separate Moodle tool opens
+`https://owui.fcr.lat/admin/users/overview` with automatic sign-in to **one
+shared, existing Open WebUI administrator account**. It reuses the LTI 1.3
+gateway and platform registrations; no second gateway or student SSO changes
+are needed. It is disabled by default.
+
+**Access policy: every user with a valid resource launch from any registered
+Moodle platform is allowed, including learners. There is no role filter.**
+The destination is only a landing page, not a permissions boundary: users
+receive full Open WebUI administrator privileges, not read-only access or
+access limited to their course. They can modify users and server settings.
+Open WebUI actions are attributed to the shared account; gateway logs record
+the originating Moodle issuer, client and subject for each admin launch.
+Restrict activity visibility in Moodle if access should not be universal.
+
+### Deployment
+
+1. Create or choose the shared account in the **stock** Open WebUI instance
+   at `https://owui.fcr.lat` and make it an administrator there. The gateway
+   never creates or promotes an account. It uses Open WebUI's password
+   sign-in endpoint, so that account must support password login without an
+   MFA challenge. Use a dedicated account and store its credentials only
+   in deployment secrets, not in Moodle custom parameters.
+2. In `docker/.env`, set:
+
+   ```dotenv
+   LTI_ADMIN_ENABLED=true
+   LTI_ADMIN_PUBLIC_URL=https://owui.fcr.lat
+   LTI_ADMIN_EMAIL=your-shared-admin@example.com
+   LTI_ADMIN_PASSWORD='your-shared-admin-password'
+   ```
+
+   The public URL must be an HTTPS origin without a path. The gateway must
+   be able to reach its `/api/v1/auths/signin` endpoint over HTTPS. Rebuild
+   and recreate `lti-gateway`; a container restart alone does not apply the
+   new environment:
+
+   ```sh
+   docker compose --env-file docker/.env -f docker/docker-compose-lti.yml up -d --build lti-gateway
+   ```
+3. Add the location in `docker/nginx-owui-admin.example.conf` **inside the
+   existing HTTPS server block for `owui.fcr.lat`**, keeping the existing
+   Open WebUI `location /` unchanged. Adjust the loopback gateway port if
+   necessary. Run `nginx -t`, then reload nginx. No trusted-header
+   authentication or changes to the stock Open WebUI container are needed.
+4. Add a second LTI 1.3 tool in Moodle using the values at
+   `https://<LTI_PUBLIC_URL>/lti/admin/config`:
+   - Tool URL and content selection URL:
+     `https://<LTI_PUBLIC_URL>/lti/admin/launch`
+   - Initiate login URL: `https://<LTI_PUBLIC_URL>/lti/login`
+   - Redirect URI: `https://<LTI_PUBLIC_URL>/lti/admin/launch`
+   - Public keyset URL: `https://<LTI_PUBLIC_URL>/lti/jwks`
+   - Default launch container: **New window** (not an iframe).
+   - Disable grade services for this tool.
+
+   Register the new Moodle client/deployment in `platforms.json` as in
+   the deployment instructions below. When registering multiple clients
+   for the same issuer, use a list of registration objects under that
+   issuer, preserving the existing student registration. Deep Linking
+   directly returns an ungraded "Open WebUI users overview" resource.
+5. Add an activity using the new tool. Existing chatbot activities keep
+   their original tool URL, model selection, student identity and grading.
+
+### Handoff and session behavior
+
+A validated launch returns an auto-submitted form (with a manual Continue
+button if scripts are disabled). Its opaque ticket expires after 60 seconds
+and can be redeemed once, atomically across gateway workers. It is posted
+to the target host, not placed in a URL. No admin password or Open WebUI
+session token crosses hosts in a redirect. Only ticket hashes and expiry
+times are persisted in the gateway.
+
+The target-host callback signs in server-to-server and checks that the
+response identifies the configured account with the `admin` role before
+installing its session. Missing, expired, reused or forged handoffs fail;
+backend failures and non-admin accounts produce explicit errors. Reopen
+the Moodle activity to retry.
+
+The completion page installs Open WebUI's token in that host's browser
+storage and secure, host-only cookie, then navigates to
+`/admin/users/overview`. JavaScript and local storage must be enabled.
+**This replaces any existing Open WebUI login on that browser origin.**
+Use a separate browser profile for personal/student accounts when needed.
+Session validity follows Open WebUI's own token expiry; the cookie lifetime
+is capped by `LTI_SESSION_TTL`. Disabling this activity does not revoke
+already-issued Open WebUI sessions: revoke them in Open WebUI as well.
+Keep the target host's normal Open WebUI login and authorization in place.
+
 ## Resuming a conversation
 
 The gateway remembers, per resource link + learner, the Open WebUI chat they

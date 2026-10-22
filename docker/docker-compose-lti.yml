@@ -16,6 +16,10 @@ services:
       GATEWAY_USER_EMAIL_DOMAIN: "${LTI_USER_EMAIL_DOMAIN:-lti.invalid}"
       GATEWAY_STUDENT_GROUP: "${LTI_STUDENT_GROUP:-estudiantes}"
       GATEWAY_MODELS: "${LTI_GATEWAY_MODELS:-}"
+      GATEWAY_ADMIN_ENABLED: "${LTI_ADMIN_ENABLED:-false}"
+      GATEWAY_ADMIN_PUBLIC_URL: "${LTI_ADMIN_PUBLIC_URL:-https://owui.fcr.lat}"
+      GATEWAY_ADMIN_EMAIL: "${LTI_ADMIN_EMAIL:-}"
+      GATEWAY_ADMIN_PASSWORD: "${LTI_ADMIN_PASSWORD:-}"
       # Lets the gateway resume a learner's previous chat on relaunch; reaches
       # open-webui-lti directly (bypassing nginx) using the service name below.
       GATEWAY_WEBUI_INTERNAL_URL: "${LTI_GATEWAY_WEBUI_INTERNAL_URL:-http://open-webui-lti:8080}"

@@ -18,6 +18,7 @@ from pylti1p3.service_connector import ServiceConnector
 from pylti1p3.tool_config import ToolConfDict
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from .admin_sso import AdminSSO
 from .config import Settings, load_or_create_keys, load_platforms
 from .store import LaunchStore
 from .webui_client import find_resumable_chat
@@ -136,6 +137,11 @@ def create_app(settings: Settings | None = None) -> Flask:
     store = LaunchStore(settings.data_dir / "gateway.sqlite3")
     signer = URLSafeTimedSerializer(settings.secret_key)
     launch_url = f"{settings.public_url}/lti/launch"
+    admin_launch_url = f"{settings.public_url}/lti/admin/launch"
+    admin_sso = (
+        AdminSSO(app, settings.admin_sso, settings.data_dir / "admin-sso.sqlite3", settings.session_ttl)
+        if settings.admin_sso else None
+    )
 
     def sso_response(identity: tuple[str, str], model: str | None = None, chat_id: str | None = None):
         if chat_id:
@@ -189,17 +195,53 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.route("/lti/login", methods=["GET", "POST"])
     def login():
         target = request.values.get("target_link_uri", "")
-        if target != launch_url:
+        allowed_targets = {launch_url}
+        if admin_sso:
+            allowed_targets.add(admin_launch_url)
+        if target not in allowed_targets:
             abort(400)
         return FlaskOIDCLogin(FlaskRequest(), tool_conf).redirect(target)
 
+    @app.get("/lti/admin/config")
+    def admin_config():
+        if not admin_sso:
+            abort(404)
+        return jsonify(
+            {
+                "tool_url": admin_launch_url,
+                "initiate_login_url": f"{settings.public_url}/lti/login",
+                "redirection_uris": [admin_launch_url],
+                "public_keyset_url": f"{settings.public_url}/lti/jwks",
+                "deep_linking_url": admin_launch_url,
+            }
+        )
+
+    @app.post("/lti/admin/launch")
     @app.post("/lti/launch")
     def launch():
+        admin_launch = request.path == "/lti/admin/launch"
+        if admin_launch and not admin_sso:
+            abort(404)
         message = FlaskMessageLaunch(FlaskRequest(), tool_conf)
         data = message.get_launch_data()
         iss = message.get_iss()
         client_id = message.get_client_id()
         deployment_id = data[CLAIM + "deployment_id"]
+
+        if admin_launch:
+            if data.get(CLAIM + "target_link_uri") != admin_launch_url:
+                abort(400)
+            if message.is_deep_link_launch():
+                resource = ResourceLink().set_url(admin_launch_url).set_title("Open WebUI users overview")
+                return message.get_deep_link().output_response_form([resource])
+            if not message.is_resource_launch():
+                abort(400)
+            if admin_sso:
+                app.logger.warning(
+                    "Shared admin launch: issuer=%s client=%s subject=%s",
+                    iss, client_id, data["sub"],
+                )
+                return admin_sso.launch_response()
 
         if message.is_deep_link_launch():
             message.get_deep_link()  # raises if deep_linking_settings are missing
@@ -346,4 +388,3 @@ def create_app(settings: Settings | None = None) -> Flask:
         return "", 204
 
     return app
-
