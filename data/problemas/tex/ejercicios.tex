@@ -48,6 +48,45 @@
 
 \begin{itemize}
  
+
+
+\item \textbf{cinematica-ej-1:} Distancia entre auto y moto. \par\medskip
+
+  \begin{center}
+  \begin{minipage}{0.60\linewidth}
+  \textbf{Ejercicio:} Un automovilista se da cuenta al sobrepasar un motociclista que se trata de un amigo e instantáneamente (se desprecia el tiempo de reacción) aplica los frenos. Toda la información está contenida en el gráfico \textbf{\textit{v}} vs. \textbf{\textit{t}}, en el que se ha prendido el cronómetro en el instante en el que el auto sobrepasa la moto. A los $4\text{ s}$, ¿cuál es la distancia entre el auto y la moto?
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % Ejes principal y secundario
+  \draw[-latex, line width=1.2pt] (0, -0.4) -- (0, 3.5) node[left] {\textbf{\textit{v}}(km/h)};
+  \draw[-latex, line width=1.2pt] (-0.4, 0) -- (4.8, 0) node[below] {\textbf{\textit{t}}(s)};
+
+  % Origen
+  \node[below left] at (0, 0) {\textbf{0}};
+
+  % Valores en el eje vertical
+  \node[left] at (0, 2.8) {\textbf{90}};
+  \node[left] at (0, 1.68) {\textbf{54}};
+
+  % Valor en el eje horizontal
+  \node[below] at (2.4, 0) {\textbf{4}};
+
+  % Línea discontinua desde el punto de intersección
+  \draw[dashed, line width=0.8pt] (2.4, 1.68) -- (2.4, 0);
+
+  % Gráfica de la Moto (línea constante)
+  \draw[line width=1.4pt] (0, 1.68) -- (3.8, 1.68) node[above, pos=0.8] {moto};
+
+  % Gráfica del Auto (línea recta con pendiente negativa)
+  \draw[line width=1.4pt] (0, 2.8) -- (3.3, 1.25) node[above, pos=0.32] {auto};
+
+\end{tikzpicture}
+\end{center}
+
+\end{minipage}
+\end{center}
+
 \item \textbf{calorimetria-001 :} Aceite y hielo, buscar masa del aceite. \par\medskip
 
 \begin{center}
@@ -103,7 +142,7 @@
 \end{center}
 
 \newpage
-  
+
 \item \textbf{termodinamica-preg-1:} Comparar calores en dos trayectorias entre mismos estados. \par\medskip
 
   \begin{center}
