@@ -1,6 +1,6 @@
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 class AdminSSOSettings:
     public_url: str
     email: str
-    password: str = field(repr=False)
+    internal_url: str
 
     def __post_init__(self):
         url = urlsplit(self.public_url)
@@ -21,8 +21,15 @@ class AdminSSOSettings:
             or url.path or url.query or url.fragment
         ):
             raise ValueError("GATEWAY_ADMIN_PUBLIC_URL must be an HTTPS origin without a path")
-        if not self.email.strip() or not self.password:
-            raise ValueError("Shared admin email and password must be set")
+        internal = urlsplit(self.internal_url)
+        if (
+            internal.scheme not in ("http", "https") or not internal.hostname
+            or internal.username or internal.password or internal.path
+            or internal.query or internal.fragment
+        ):
+            raise ValueError("GATEWAY_ADMIN_WEBUI_INTERNAL_URL must be an HTTP(S) origin")
+        if not self.email.strip() or any(c in self.email for c in ("\r", "\n")):
+            raise ValueError("Shared admin email must be set and contain no newlines")
 
 
 @dataclass(frozen=True)
@@ -37,6 +44,12 @@ class Settings:
     models: tuple[tuple[str, str], ...] = ()
     webui_internal_url: str = ""
     admin_sso: AdminSSOSettings | None = None
+
+    def __post_init__(self):
+        if self.admin_sso and (
+            urlsplit(self.admin_sso.public_url).hostname == urlsplit(self.public_url).hostname
+        ):
+            raise ValueError("Admin and student public URLs must use different hostnames")
 
     @property
     def secure(self) -> bool:
@@ -58,7 +71,7 @@ class Settings:
             admin_sso = AdminSSOSettings(
                 public_url=required("GATEWAY_ADMIN_PUBLIC_URL").rstrip("/"),
                 email=required("GATEWAY_ADMIN_EMAIL").strip(),
-                password=required("GATEWAY_ADMIN_PASSWORD"),
+                internal_url=required("GATEWAY_ADMIN_WEBUI_INTERNAL_URL").rstrip("/"),
             )
 
         return cls(

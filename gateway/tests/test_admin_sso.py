@@ -15,9 +15,10 @@ from lti_gateway.app import create_app
 from lti_gateway.config import AdminSSOSettings, Settings
 from test_gateway import deep_link_claims
 
-ADMIN_URL = "https://owui.fcr.lat"
+ADMIN_URL = "https://lti-admin.fcr.lat"
+ADMIN_INTERNAL_URL = "http://open-webui-lti:8080"
 ADMIN_LAUNCH = f"{PUBLIC_URL}/lti/admin/launch"
-ADMIN_SETTINGS = AdminSSOSettings(ADMIN_URL, "shared-admin@example.com", "test-password")
+ADMIN_SETTINGS = AdminSSOSettings(ADMIN_URL, "shared-admin@example.com", ADMIN_INTERNAL_URL)
 ADMIN_ACCOUNT = {
     "email": ADMIN_SETTINGS.email,
     "role": "admin",
@@ -97,8 +98,8 @@ def test_learner_launch_creates_only_opaque_handoff(admin_client, platform, sett
     resume.assert_not_called()
     assert response.status_code == 200
     assert f'action="{ADMIN_URL}/lti/admin/complete"' in response.text
-    assert ADMIN_SETTINGS.password not in response.text
     assert ADMIN_SETTINGS.email not in response.text
+    assert ADMIN_INTERNAL_URL not in response.text
     assert admin_client.get_cookie("lti_gw") is None
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["Referrer-Policy"] == "no-referrer"
@@ -147,8 +148,9 @@ def test_admin_handoff_signs_in_once_and_sets_target_host_session(admin_client, 
     assert response.status_code == 200
     assert replay.status_code == 400
     signin.assert_called_once_with(
-        ADMIN_URL + "/api/v1/auths/signin",
-        json={"email": ADMIN_SETTINGS.email, "password": ADMIN_SETTINGS.password},
+        ADMIN_INTERNAL_URL + "/api/v1/auths/signin",
+        json={"email": ADMIN_SETTINGS.email, "password": "lti-gateway"},
+        headers={"X-Forwarded-Email": ADMIN_SETTINGS.email},
         timeout=5, allow_redirects=False,
     )
     assert 'localStorage.setItem("token", "test-openwebui-session")' in response.text
@@ -186,6 +188,21 @@ def test_wrong_host_does_not_consume_ticket(admin_client, platform):
         ).status_code == 400
         signin.assert_not_called()
         assert complete(admin_client, ticket).status_code == 200
+
+
+def test_browser_identity_headers_are_not_forwarded_to_internal_signin(admin_client, platform):
+    ticket = handoff_ticket(admin_client, platform)
+    with patch("lti_gateway.admin_sso.requests.post", return_value=signin_result()) as signin:
+        response = admin_client.post(
+            "/lti/admin/complete", base_url=ADMIN_URL, data={"ticket": ticket},
+            headers={
+                "X-Forwarded-Email": "attacker@example.com",
+                "X-Forwarded-Role": "admin",
+                "X-Forwarded-Groups": "estudiantes",
+            },
+        )
+    assert response.status_code == 200
+    assert signin.call_args.kwargs["headers"] == {"X-Forwarded-Email": ADMIN_SETTINGS.email}
 
 
 def test_concurrent_redemption_only_signs_in_once(admin_client, platform):
@@ -286,10 +303,31 @@ def test_student_launch_still_uses_student_sso_with_admin_enabled(admin_client, 
 ])
 def test_admin_url_must_be_https_origin(url):
     with pytest.raises(ValueError):
-        AdminSSOSettings(url, ADMIN_SETTINGS.email, ADMIN_SETTINGS.password)
+        AdminSSOSettings(url, ADMIN_SETTINGS.email, ADMIN_INTERNAL_URL)
 
 
-def test_admin_config_is_explicit_and_requires_credentials(monkeypatch):
+@pytest.mark.parametrize("url", [
+    "", "ftp://open-webui-lti", "http://user:password@open-webui-lti",
+    "http://open-webui-lti/path", "http://open-webui-lti?query=1",
+])
+def test_admin_internal_url_must_be_http_origin(url):
+    with pytest.raises(ValueError):
+        AdminSSOSettings(ADMIN_URL, ADMIN_SETTINGS.email, url)
+
+
+def test_admin_and_student_hosts_must_be_distinct(settings):
+    admin = AdminSSOSettings("https://tool.test", ADMIN_SETTINGS.email, ADMIN_INTERNAL_URL)
+    with pytest.raises(ValueError, match="different hostnames"):
+        replace(settings, admin_sso=admin)
+
+
+@pytest.mark.parametrize("email", ["", " ", "admin@example.com\r\nX-Injected: value"])
+def test_invalid_shared_admin_email_is_rejected(email):
+    with pytest.raises(ValueError):
+        AdminSSOSettings(ADMIN_URL, email, ADMIN_INTERNAL_URL)
+
+
+def test_admin_config_is_explicit_and_requires_internal_url(monkeypatch):
     monkeypatch.setenv("GATEWAY_SECRET_KEY", "test-secret")
     monkeypatch.setenv("GATEWAY_PUBLIC_URL", PUBLIC_URL)
     monkeypatch.setenv("GATEWAY_ADMIN_ENABLED", "false")
@@ -297,9 +335,9 @@ def test_admin_config_is_explicit_and_requires_credentials(monkeypatch):
     monkeypatch.setenv("GATEWAY_ADMIN_ENABLED", "true")
     monkeypatch.setenv("GATEWAY_ADMIN_PUBLIC_URL", ADMIN_URL)
     monkeypatch.setenv("GATEWAY_ADMIN_EMAIL", ADMIN_SETTINGS.email)
-    monkeypatch.delenv("GATEWAY_ADMIN_PASSWORD", raising=False)
-    with pytest.raises(RuntimeError, match="GATEWAY_ADMIN_PASSWORD"):
+    monkeypatch.delenv("GATEWAY_ADMIN_WEBUI_INTERNAL_URL", raising=False)
+    with pytest.raises(RuntimeError, match="GATEWAY_ADMIN_WEBUI_INTERNAL_URL"):
         Settings.from_env()
-    monkeypatch.setenv("GATEWAY_ADMIN_PASSWORD", ADMIN_SETTINGS.password)
+    monkeypatch.setenv("GATEWAY_ADMIN_WEBUI_INTERNAL_URL", ADMIN_INTERNAL_URL)
+    monkeypatch.delenv("GATEWAY_ADMIN_PASSWORD", raising=False)
     assert Settings.from_env().admin_sso == ADMIN_SETTINGS
-    assert ADMIN_SETTINGS.password not in repr(ADMIN_SETTINGS)

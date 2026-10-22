@@ -92,8 +92,9 @@ class AdminSSO:
 
         try:
             signin = requests.post(
-                self.settings.public_url + "/api/v1/auths/signin",
-                json={"email": self.settings.email, "password": self.settings.password},
+                self.settings.internal_url + "/api/v1/auths/signin",
+                json={"email": self.settings.email, "password": "lti-gateway"},
+                headers={"X-Forwarded-Email": self.settings.email},
                 timeout=REQUEST_TIMEOUT,
                 allow_redirects=False,
             )
@@ -103,7 +104,7 @@ class AdminSSO:
                 abort(502, "Unexpected Open WebUI admin sign-in response.")
             account = signin.json()
         except (requests.RequestException, ValueError):
-            # Do not log response bodies or exception URLs containing account credentials.
+            # Do not log response bodies containing session tokens.
             current_app.logger.error("Shared admin Open WebUI sign-in failed")
             abort(502, "Open WebUI admin sign-in failed. Contact the administrator.")
         if (
