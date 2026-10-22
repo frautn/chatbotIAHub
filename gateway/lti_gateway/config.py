@@ -2,9 +2,34 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+
+
+@dataclass(frozen=True)
+class AdminSSOSettings:
+    public_url: str
+    email: str
+    internal_url: str
+
+    def __post_init__(self):
+        url = urlsplit(self.public_url)
+        if (
+            url.scheme != "https" or not url.hostname or url.username or url.password
+            or url.path or url.query or url.fragment
+        ):
+            raise ValueError("GATEWAY_ADMIN_PUBLIC_URL must be an HTTPS origin without a path")
+        internal = urlsplit(self.internal_url)
+        if (
+            internal.scheme not in ("http", "https") or not internal.hostname
+            or internal.username or internal.password or internal.path
+            or internal.query or internal.fragment
+        ):
+            raise ValueError("GATEWAY_ADMIN_WEBUI_INTERNAL_URL must be an HTTP(S) origin")
+        if not self.email.strip() or any(c in self.email for c in ("\r", "\n")):
+            raise ValueError("Shared admin email must be set and contain no newlines")
 
 
 @dataclass(frozen=True)
@@ -18,6 +43,13 @@ class Settings:
     student_group: str
     models: tuple[tuple[str, str], ...] = ()
     webui_internal_url: str = ""
+    admin_sso: AdminSSOSettings | None = None
+
+    def __post_init__(self):
+        if self.admin_sso and (
+            urlsplit(self.admin_sso.public_url).hostname == urlsplit(self.public_url).hostname
+        ):
+            raise ValueError("Admin and student public URLs must use different hostnames")
 
     @property
     def secure(self) -> bool:
@@ -31,6 +63,17 @@ class Settings:
                 raise RuntimeError(f"{name} must be set")
             return value
 
+        admin_enabled = os.environ.get("GATEWAY_ADMIN_ENABLED", "false").lower()
+        if admin_enabled not in ("true", "false"):
+            raise ValueError("GATEWAY_ADMIN_ENABLED must be true or false")
+        admin_sso = None
+        if admin_enabled == "true":
+            admin_sso = AdminSSOSettings(
+                public_url=required("GATEWAY_ADMIN_PUBLIC_URL").rstrip("/"),
+                email=required("GATEWAY_ADMIN_EMAIL").strip(),
+                internal_url=required("GATEWAY_ADMIN_WEBUI_INTERNAL_URL").rstrip("/"),
+            )
+
         return cls(
             secret_key=required("GATEWAY_SECRET_KEY"),
             public_url=required("GATEWAY_PUBLIC_URL").rstrip("/"),
@@ -41,6 +84,7 @@ class Settings:
             student_group=os.environ.get("GATEWAY_STUDENT_GROUP", "estudiantes"),
             models=parse_models(os.environ.get("GATEWAY_MODELS", "")),
             webui_internal_url=os.environ.get("GATEWAY_WEBUI_INTERNAL_URL", "").rstrip("/"),
+            admin_sso=admin_sso,
         )
 
 

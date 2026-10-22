@@ -38,6 +38,154 @@ straight into Open WebUI with that model preselected (`/?models=<id>`). Leave
 `GATEWAY_MODELS` empty to hide the picker and always use Open WebUI's default
 model.
 
+## Shared-admin users-overview activity (LTI 1.3)
+
+This optional, separate Moodle tool opens
+`https://lti-admin.fcr.lat/admin/users/overview` with automatic sign-in to **one
+shared, existing Open WebUI administrator account**. It reuses the LTI 1.3
+gateway and platform registrations; no second gateway or student SSO changes
+are needed. It is disabled by default. The dedicated admin hostname proxies
+the **same `open-webui-lti` container** as the student activities
+(`OPENWEBUI_IMAGE_LTI`, default
+`ghcr.io/frautn/open-webui-chat-simplified:v0.12.3-arm`, host port `3001`).
+It does not use the stock `OPENWEBUI_IMAGE` container on port `3000`.
+
+**Access policy: every user with a valid resource launch from any registered
+Moodle platform is allowed, including learners. There is no role filter.**
+The destination is only a landing page, not a permissions boundary: users
+receive full Open WebUI administrator privileges, not read-only access or
+access limited to their course. They can modify users and server settings.
+Open WebUI actions are attributed to the shared account; gateway logs record
+the originating Moodle issuer, client and subject for each admin launch.
+Restrict activity visibility in Moodle if access should not be universal.
+
+### Deployment
+
+1. Create or choose a dedicated shared administrator account in the database
+   used by `open-webui-lti`. With the default shared database, it can be
+   managed through the stock instance's admin panel. Configure its exact
+   email below. The gateway signs in with the LTI container's trusted email
+   header, not an admin password; it never sends role or group headers and
+   never promotes an account. Open WebUI's trusted-header flow may create a
+   regular user if the email is unknown, but the gateway rejects any result
+   that is not the configured admin. Pre-create the admin before enabling.
+   Keep `DEFAULT_USER_ROLE=user` and leave trusted-role headers disabled.
+   Open WebUI's `ENABLE_PASSWORD_AUTH` must remain enabled: this image
+   checks that setting before both password and trusted-header sign-in.
+2. In `docker/.env`, set:
+
+   ```dotenv
+   LTI_ADMIN_ENABLED=true
+   LTI_ADMIN_PUBLIC_URL=https://lti-admin.fcr.lat
+   LTI_ADMIN_EMAIL=your-shared-admin@example.com
+   LTI_ADMIN_WEBUI_INTERNAL_URL=http://open-webui-lti:8080
+   ```
+
+   Create DNS and a TLS certificate for the dedicated admin hostname.
+   The public URL must be an HTTPS origin without a path, distinct from
+   the stock and both student LTI hostnames (including LTI 1.1). Host-only
+   cookies and local storage then keep student and admin sessions separate.
+   The internal URL must point to the same `open-webui-lti` service that
+   nginx proxies, reachable on the private Docker network. It is independent
+   of the chat-resume URL, so disabling chat resumption does not disable
+   admin sign-in. Do not use a publicly accessible trusted-header endpoint.
+   Remove the obsolete `LTI_ADMIN_PASSWORD` if upgrading the earlier setup.
+   Rebuild and recreate `lti-gateway`; a container restart alone does not
+   apply the new environment:
+
+   ```sh
+   docker compose --env-file docker/.env -f docker/docker-compose-lti.yml up -d --build lti-gateway
+   ```
+3. Install `docker/nginx-owui-admin.example.conf` as a **separate nginx
+   virtual host**, not inside the stock or student server blocks. Set the
+   hostname, certificates, gateway port (`8090`) and LTI WebUI port (`3001`)
+   as needed. It proxies the handoff callback to the gateway and all other
+   requests to the simplified LTI container. It deliberately does not use
+   the student's `auth_request`, strips browser-supplied trusted identity
+   headers and blocks public sign-in/sign-up/LDAP endpoints. Open WebUI
+   authenticates API requests using the issued admin token. Run `nginx -t`,
+   then reload nginx. No changes to the stock Open WebUI container or
+   either student nginx configuration are needed. Remove any earlier admin
+   callback location installed on the stock hostname.
+4. Add a second LTI 1.3 tool in Moodle using the values at
+   `https://<LTI_PUBLIC_URL>/lti/admin/config`:
+   - Tool URL and content selection URL:
+     `https://<LTI_PUBLIC_URL>/lti/admin/launch`
+   - Initiate login URL: `https://<LTI_PUBLIC_URL>/lti/login`
+   - Redirect URI: `https://<LTI_PUBLIC_URL>/lti/admin/launch`
+   - Public keyset URL: `https://<LTI_PUBLIC_URL>/lti/jwks`
+   - Default launch container: **New window** (not an iframe).
+   - Disable grade services for this tool.
+
+   Register the new Moodle client/deployment in `platforms.json` as in
+   the deployment instructions below. When registering multiple clients
+   for the same issuer, use a list of registration objects under that
+   issuer, preserving the existing student registration. Deep Linking
+   directly returns an ungraded "Open WebUI users overview" resource.
+   Do not repeat an issuer as a JSON object key: only the last entry is
+   loaded, which removes the earlier tool registration and causes
+   "Invalid LTI request" for that tool. For example:
+
+   ```json
+   {
+     "https://moodle.example.com": [
+       {
+         "client_id": "STUDENT_CLIENT_ID",
+         "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
+         "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
+         "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
+         "deployment_ids": ["1"]
+       },
+       {
+         "client_id": "ADMIN_CLIENT_ID",
+         "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
+         "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
+         "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
+         "deployment_ids": ["2"]
+       }
+     ]
+   }
+   ```
+
+   After updating registrations, copy the file into the running gateway
+   and restart it:
+
+   ```sh
+   docker cp platforms.json lti-gateway:/data/platforms.json
+   docker restart lti-gateway
+   ```
+5. Add an activity using the new tool. Existing chatbot activities keep
+   their original tool URL, model selection, student identity and grading.
+
+### Handoff and session behavior
+
+A validated launch returns an auto-submitted form (with a manual Continue
+button if scripts are disabled). Its opaque ticket expires after 60 seconds
+and can be redeemed once, atomically across gateway workers. It is posted
+to the target host, not placed in a URL. No admin password or Open WebUI
+session token crosses hosts in a redirect. Only ticket hashes and expiry
+times are persisted in the gateway.
+
+The target-host callback signs in directly to `open-webui-lti` over the
+private Docker network using `X-Forwarded-Email`, then checks that the
+response identifies the configured account with the `admin` role before
+installing its session. Missing, expired, reused or forged handoffs fail;
+backend failures and non-admin accounts produce explicit errors. Reopen
+the Moodle activity to retry.
+
+The completion page installs Open WebUI's token in that host's browser
+storage and secure, host-only cookie, then navigates to
+`/admin/users/overview`. JavaScript and local storage must be enabled.
+**This replaces any existing Open WebUI login on that browser origin.**
+Use a separate browser profile for personal/student accounts when needed.
+Session validity follows Open WebUI's own token expiry; the cookie lifetime
+is capped by `LTI_SESSION_TTL`. Disabling this activity does not revoke
+already-issued Open WebUI sessions: revoke them in Open WebUI as well.
+Keep Open WebUI authorization enabled and keep its container port bound to
+loopback. The public admin host must never inject a fixed admin identity
+header for unauthenticated visitors. Users without an issued token cannot
+access admin APIs; they must launch the activity from Moodle.
+
 ## Resuming a conversation
 
 The gateway remembers, per resource link + learner, the Open WebUI chat they
@@ -69,24 +217,41 @@ to disable chat resuming entirely.
 4. Copy the values Moodle shows (Platform ID, Client ID, Deployment ID, and its
    authentication/token/keyset URLs) into `platforms.json`:
 
-   ```json
-   {
-     "https://moodle.example.com": {
-       "client_id": "CLIENT_ID",
-       "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
-       "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
-       "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
-       "deployment_ids": ["1"]
-     },
-    "https://moodle.fcr.lat": {
-    "client_id": "another_client_id",
-    "auth_login_url": "https://moodle.fcr.lat/mod/lti/auth.php",
-    "auth_token_url": "https://moodle.fcr.lat/mod/lti/token.php",
-    "key_set_url": "https://moodle.fcr.lat/mod/lti/certs.php",
-    "deployment_ids": ["1"]
-  }
+  (This is an example using multiple sites, and also two tools in the same site)
 
-   }
+   ```json
+  {
+    "https://fcr.moodlecloud.com": [
+      {
+        "client_id": "some_id",
+        "auth_login_url": "https://fcr.moodlecloud.com/mod/lti/auth.php",
+        "auth_token_url": "https://fcr.moodlecloud.com/mod/lti/token.php",
+        "key_set_url": "https://fcr.moodlecloud.com/mod/lti/certs.php",
+        "deployment_ids": ["2"]
+      },
+      {
+        "client_id": "some_id",
+        "auth_login_url": "https://fcr.moodlecloud.com/mod/lti/auth.php",
+        "auth_token_url": "https://fcr.moodlecloud.com/mod/lti/token.php",
+        "key_set_url": "https://fcr.moodlecloud.com/mod/lti/certs.php",
+        "deployment_ids": ["3"]
+      }
+    ],
+    "https://moodle.fcr.lat": {
+      "client_id": "some_id",
+      "auth_login_url": "https://moodle.fcr.lat/mod/lti/auth.php",
+      "auth_token_url": "https://moodle.fcr.lat/mod/lti/token.php",
+      "key_set_url": "https://moodle.fcr.lat/mod/lti/certs.php",
+      "deployment_ids": ["1"]
+    },
+    "https://cbccampusvirtual.uba.ar": {
+      "client_id": "some_id",
+      "auth_login_url": "https://cbccampusvirtual.uba.ar/mod/lti/auth.php",
+      "auth_token_url": "https://cbccampusvirtual.uba.ar/mod/lti/token.php",
+      "key_set_url": "https://cbccampusvirtual.uba.ar/mod/lti/certs.php",
+      "deployment_ids": ["14"]
+    }
+  }
    ```
 
    Then `docker cp platforms.json lti-gateway:/data/platforms.json` and
