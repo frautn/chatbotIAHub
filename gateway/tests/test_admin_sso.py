@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -90,6 +91,54 @@ def test_admin_config_is_separate_and_student_config_unchanged(admin_client):
     assert config["deep_linking_url"] == ADMIN_LAUNCH
     assert config["redirection_uris"] == [ADMIN_LAUNCH]
     assert admin_client.get("/lti/config").json["tool_url"] == f"{PUBLIC_URL}/lti/launch"
+
+
+@pytest.mark.parametrize("is_admin", [False, True])
+def test_student_and_admin_clients_share_one_issuer(client, settings, platform, is_admin):
+    registrations = [
+        {
+            "client_id": client_id,
+            "auth_login_url": f"{ISS}/auth",
+            "auth_token_url": f"{ISS}/token",
+            "key_set": platform.jwks,
+            "deployment_ids": [deployment_id],
+        }
+        for client_id, deployment_id in [(CLIENT_ID, "1"), ("admin-client", "2")]
+    ]
+    settings.data_dir.joinpath("platforms.json").write_text(json.dumps({ISS: registrations}))
+    app = create_app(replace(settings, admin_sso=ADMIN_SETTINGS))
+    app.config["TESTING"] = True
+    multi_client = app.test_client()
+    client_id = "admin-client" if is_admin else CLIENT_ID
+    deployment_id = "2" if is_admin else "1"
+    path = "/lti/admin/launch" if is_admin else "/lti/launch"
+    target = PUBLIC_URL + path
+    login = multi_client.post(
+        "/lti/login",
+        data={"iss": ISS, "login_hint": "hint", "client_id": client_id,
+              "target_link_uri": target},
+    )
+    assert login.status_code == 302
+    query = parse_qs(urlparse(login.headers["Location"]).query)
+    assert query["client_id"] == [client_id]
+    token = platform.id_token(
+        query["nonce"][0],
+        resource_claims(**{
+            "aud": client_id,
+            CLAIM + "deployment_id": deployment_id,
+            CLAIM + "target_link_uri": target,
+        }),
+    )
+    with patch("lti_gateway.app.find_resumable_chat", return_value=None):
+        response = multi_client.post(path, data={"state": query["state"][0], "id_token": token})
+    if is_admin:
+        assert response.status_code == 200
+        assert f'action="{ADMIN_URL}/lti/admin/complete"' in response.text
+        assert multi_client.get_cookie("lti_gw") is None
+    else:
+        assert response.status_code == 302
+        assert response.headers["Location"] == f"{PUBLIC_URL}/"
+        assert multi_client.get("/auth").headers["X-LTI-Group"] == "estudiantes"
 
 
 def test_learner_launch_creates_only_opaque_handoff(admin_client, platform, settings):

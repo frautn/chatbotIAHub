@@ -122,6 +122,38 @@ Restrict activity visibility in Moodle if access should not be universal.
    for the same issuer, use a list of registration objects under that
    issuer, preserving the existing student registration. Deep Linking
    directly returns an ungraded "Open WebUI users overview" resource.
+   Do not repeat an issuer as a JSON object key: only the last entry is
+   loaded, which removes the earlier tool registration and causes
+   "Invalid LTI request" for that tool. For example:
+
+   ```json
+   {
+     "https://moodle.example.com": [
+       {
+         "client_id": "STUDENT_CLIENT_ID",
+         "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
+         "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
+         "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
+         "deployment_ids": ["1"]
+       },
+       {
+         "client_id": "ADMIN_CLIENT_ID",
+         "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
+         "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
+         "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
+         "deployment_ids": ["2"]
+       }
+     ]
+   }
+   ```
+
+   After updating registrations, copy the file into the running gateway
+   and restart it:
+
+   ```sh
+   docker cp platforms.json lti-gateway:/data/platforms.json
+   docker restart lti-gateway
+   ```
 5. Add an activity using the new tool. Existing chatbot activities keep
    their original tool URL, model selection, student identity and grading.
 
@@ -185,24 +217,41 @@ to disable chat resuming entirely.
 4. Copy the values Moodle shows (Platform ID, Client ID, Deployment ID, and its
    authentication/token/keyset URLs) into `platforms.json`:
 
-   ```json
-   {
-     "https://moodle.example.com": {
-       "client_id": "CLIENT_ID",
-       "auth_login_url": "https://moodle.example.com/mod/lti/auth.php",
-       "auth_token_url": "https://moodle.example.com/mod/lti/token.php",
-       "key_set_url": "https://moodle.example.com/mod/lti/certs.php",
-       "deployment_ids": ["1"]
-     },
-    "https://moodle.fcr.lat": {
-    "client_id": "another_client_id",
-    "auth_login_url": "https://moodle.fcr.lat/mod/lti/auth.php",
-    "auth_token_url": "https://moodle.fcr.lat/mod/lti/token.php",
-    "key_set_url": "https://moodle.fcr.lat/mod/lti/certs.php",
-    "deployment_ids": ["1"]
-  }
+  (This is an example using multiple sites, and also two tools in the same site)
 
-   }
+   ```json
+  {
+    "https://fcr.moodlecloud.com": [
+      {
+        "client_id": "some_id",
+        "auth_login_url": "https://fcr.moodlecloud.com/mod/lti/auth.php",
+        "auth_token_url": "https://fcr.moodlecloud.com/mod/lti/token.php",
+        "key_set_url": "https://fcr.moodlecloud.com/mod/lti/certs.php",
+        "deployment_ids": ["2"]
+      },
+      {
+        "client_id": "some_id",
+        "auth_login_url": "https://fcr.moodlecloud.com/mod/lti/auth.php",
+        "auth_token_url": "https://fcr.moodlecloud.com/mod/lti/token.php",
+        "key_set_url": "https://fcr.moodlecloud.com/mod/lti/certs.php",
+        "deployment_ids": ["3"]
+      }
+    ],
+    "https://moodle.fcr.lat": {
+      "client_id": "some_id",
+      "auth_login_url": "https://moodle.fcr.lat/mod/lti/auth.php",
+      "auth_token_url": "https://moodle.fcr.lat/mod/lti/token.php",
+      "key_set_url": "https://moodle.fcr.lat/mod/lti/certs.php",
+      "deployment_ids": ["1"]
+    },
+    "https://cbccampusvirtual.uba.ar": {
+      "client_id": "some_id",
+      "auth_login_url": "https://cbccampusvirtual.uba.ar/mod/lti/auth.php",
+      "auth_token_url": "https://cbccampusvirtual.uba.ar/mod/lti/token.php",
+      "key_set_url": "https://cbccampusvirtual.uba.ar/mod/lti/certs.php",
+      "deployment_ids": ["14"]
+    }
+  }
    ```
 
    Then `docker cp platforms.json lti-gateway:/data/platforms.json` and
