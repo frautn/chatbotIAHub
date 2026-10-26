@@ -23,6 +23,7 @@ Rules:
 **Constraints from the filter code**
 - The regex requires double quotes and integers only, with `<grade score="N" max="N"/>`. Decimals such as `7.5` won't match.
 - It inspects only the last message, so the tag must be in the final reply.
-- It posts `chat_id` plus the scores to `gateway_url`. The default `http://lti-gateway:8090/api/scores` only works if OpenWebUI shares a Docker network with the gateway.
+- It posts `chat_id`, the scores, and the current user's email to `gateway_url`. The email lets the gateway associate a learner's first chat with the Moodle launch before a chat ID has been recorded. The default `http://lti-gateway:8090/api/scores` only works if OpenWebUI shares a Docker network with the gateway.
+- The tag is removed only after the gateway returns a successful HTTP response. A gateway error is surfaced by the filter instead of being silently treated as a successful grade submission.
 
-**Optional hardening:** if you need decimal grades, change the regex to `(\d+(?:\.\d+)?)`. The `requests.post` is also uncaught, so a gateway failure would break the chat response. Wrap it in `try/except` if you want it to fail quietly.
+If you need decimal grades, change the regex to `(\d+(?:\.\d+)?)`.

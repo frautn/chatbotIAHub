@@ -16,15 +16,17 @@ class Filter:
         if not match:
             return body
 
-        requests.post(
+        response = requests.post(
             self.valves.gateway_url,
             json={
                 "chat_id": body["chat_id"],
+                "email": __user__.get("email") if __user__ else None,
                 "score_given": float(match.group(1)),
                 "score_maximum": float(match.group(2)),
             },
             headers={"Authorization": f"Bearer {self.valves.api_token}"},
             timeout=5,
         )
+        response.raise_for_status()
         body["messages"][-1]["content"] = content[: match.start()] + content[match.end():]
         return body
