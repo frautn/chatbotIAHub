@@ -301,3 +301,9 @@ values override the environment too.
 Users without a personal override (including new users) inherit the default;
 an explicit personal choice is preserved. Reload the page to fetch new defaults.
 Do not delete volumes or disable all persistent configuration to apply this change.
+
+
+
+Update openwebui:
+-----------------
+docker compose -f docker-compose-openwebui.yml pull
