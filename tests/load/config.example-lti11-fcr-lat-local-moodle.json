@@ -1,0 +1,24 @@
+{
+  "moodleOrigin": "http://localhost:8510",
+  "activityUrl": "http://localhost:8510/mod/lti/view.php?id=2",
+  "toolOrigin": "https://lti11.fcr.lat",
+  "accountsFile": "./accounts.local.json",
+  "users": 1,
+  "rounds": 1,
+  "launchIntervalMs": 1000,
+  "thinkMs": 10000,
+  "timeoutMs": 120000,
+  "headless": false,
+  "prompt": "Synthetic load test: briefly explain the difference between speed and velocity.",
+  "selectors": {
+    "username": "#username",
+    "password": "#password",
+    "login": "#loginbtn",
+    "launch": null,
+    "chatInput": "#chat-input",
+    "send": "#send-message-button",
+    "busy": "button[aria-label='Detener']", 
+    "assistantMessage": "#response-content-container:not(:has(div.rounded-2xl:has(> svg[aria-hidden='true']):has-text(\"'error':\")))",
+    "chatError": "div.rounded-2xl:has(> svg[aria-hidden='true']):has-text(\"'error':\")"
+  }
+}
