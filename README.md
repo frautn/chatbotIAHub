@@ -26,3 +26,11 @@ cursos y propuestas consolidadas.
 La propuesta consiste en un chatbot tutor para que estudiantes de Física e Introducción a la Biofísica del CBC practiquen la escritura de resoluciones y la argumentación de sus razonamientos. Surge de una dificultad observada en la cursada: aunque muchos estudiantes resuelven correctamente problemas de opción múltiple, les cuesta explicar por escrito cómo llegaron a sus respuestas. Como la cantidad de estudiantes dificulta ofrecer devoluciones individuales y sostenidas, el chatbot busca acompañar esa práctica de manera autónoma y formativa.
 
 Integrado como actividad de herramienta externa (LTI) en Moodle y conectado con una instancia personalizada de Open WebUI, el dispositivo recibe fotos de resoluciones manuscritas y ofrece una calificación, señala aciertos, errores conceptuales y aspectos de claridad, y orienta la revisión con preguntas socráticas sin resolver el ejercicio por el estudiante. Cada actividad puede configurarse con instrucciones, materiales de referencia y criterios de evaluación propios; el estudiante vuelve a enviar versiones corregidas hasta alcanzar un nivel satisfactorio. La integración desarrollada en el repositorio contempla lanzamientos LTI 1.1 y 1.3, continuidad de las conversaciones y envío opcional de calificaciones. A su vez, el entorno permite al equipo docente monitorear las interacciones e intervenir, y ajustar las consignas, rúbricas y devoluciones a partir de la experiencia.
+
+## Pruebas de carga
+
+La [guía de pruebas automatizadas](tests/load/README.md) explica cómo usar
+Playwright para iniciar sesión en Moodle, abrir la actividad LTI y probar
+conversaciones simultáneas con cuentas de prueba independientes. El envío de
+mensajes requiere autorización explícita y puede generar costos en el proveedor
+del modelo. Consultar también la [evaluación de capacidad](docs/scaling.md).

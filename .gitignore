@@ -87,6 +87,10 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+node_modules/
+/tests/load/config.local.json
+/tests/load/accounts.local.json
+/tests/load/results/
 .cyberbrain/
 .ruff_cache/
 .mypy_cache/

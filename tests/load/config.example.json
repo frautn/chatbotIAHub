@@ -1,0 +1,24 @@
+{
+  "moodleOrigin": "https://moodle.example.com",
+  "activityUrl": "https://moodle.example.com/mod/lti/view.php?id=123",
+  "toolOrigin": "https://chat.example.com",
+  "accountsFile": "./accounts.local.json",
+  "users": 1,
+  "rounds": 1,
+  "launchIntervalMs": 1000,
+  "thinkMs": 10000,
+  "timeoutMs": 120000,
+  "headless": true,
+  "prompt": "Synthetic load test: briefly explain the difference between speed and velocity.",
+  "selectors": {
+    "username": "#username",
+    "password": "#password",
+    "login": "#loginbtn",
+    "launch": null,
+    "chatInput": "REPLACE_WITH_VERIFIED_CHAT_INPUT_SELECTOR",
+    "send": "REPLACE_WITH_VERIFIED_SEND_BUTTON_SELECTOR",
+    "busy": "REPLACE_WITH_VERIFIED_GENERATION_IN_PROGRESS_SELECTOR",
+    "assistantMessage": "REPLACE_WITH_VERIFIED_ASSISTANT_MESSAGE_SELECTOR",
+    "chatError": "REPLACE_WITH_VERIFIED_CHAT_ERROR_SELECTOR"
+  }
+}

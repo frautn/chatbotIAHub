@@ -436,6 +436,14 @@ For this target, I would avoid OKE/Kubernetes unless your team already operates 
 
 ## 5. How to prove support for 30 simultaneous users
 
+An initial [browser load-test harness](../tests/load/README.md) is available in
+this repository. It automates real Moodle username/password login and LTI activity
+launches with isolated student sessions, followed by opt-in synchronized text-chat
+rounds. Calibrate its selectors with one student before using the 5/15/30-user
+stages. This end-to-end test includes Moodle time; the sizing assessment above
+excluded Moodle. Uploads, reconnect checks, first-token overhead and host/database
+metrics still require separate testing.
+
 The acceptance test should exercise the **actual custom UI through nginx and Gateway authentication**, not just send requests directly to the model provider.
 
 Use staging or a controlled maintenance window, with synthetic accounts and an agreed API-spend limit:
