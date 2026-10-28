@@ -235,7 +235,7 @@ Moodle 5.3 External tool (LTI 1.3) settings for https://lti.fcr.lat:
 Set the public key type to "JWK keyset" and enable Deep Linking. These URLs are
 also available from https://lti.fcr.lat/lti/config.
 
-sudo ln -s /etc/nginx/sites-available/lti.retag.lat /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/lti.fcr.lat /etc/nginx/sites-enabled/
 
 LTI 1.1 gateway
 ---------------
@@ -248,12 +248,18 @@ Unlike LTI 1.3 there is no dynamic registration: a consumer key/secret pair must
 entered manually both in Moodle's "External tool" activity config and in the
 gateway's own consumers.json:
 
+
+0. If we need to cerate these keys or renew them, we need to load the .env values 
+  cd /home/ubuntu/chatbotIAHub/docker
+  set -a
+  source .env
+  set +a
 1. echo '{"'"$LTI11_CONSUMER_KEY"'": "'"$LTI11_CONSUMER_SECRET"'"}' > consumers.json
 2. docker cp consumers.json lti11-gateway:/data/consumers.json
 3. docker restart lti11-gateway   # consumers.json is only read at startup
 
 In Moodle, configure the External tool manually (LTI version 1.1/1.2) with:
-- Tool URL:       https://lti1.retag.lat/lti11/launch
+- Tool URL:       https://lti11.fcr.lat/lti11/launch
 - Consumer key:   $LTI11_CONSUMER_KEY
 - Shared secret:  $LTI11_CONSUMER_SECRET
 - Custom parameters (optional, to pin a model): model=<id-from-LTI11_GATEWAY_MODELS>

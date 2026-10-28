@@ -36,6 +36,21 @@ It supplements, not replaces, the [capacity acceptance plan](../../docs/scaling.
 
 ## Install
 
+---
+You need Node.js 22. Install using nvm:
+
+https://github.com/nvm-sh/nvm 
+
+I did:
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+
+then:
+
+nvm install 2
+---
+
+
 From the repository root:
 
 ```bash
