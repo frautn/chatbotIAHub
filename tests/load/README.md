@@ -47,7 +47,7 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
 
 then:
 
-nvm install 2
+nvm install 22
 ---
 
 
