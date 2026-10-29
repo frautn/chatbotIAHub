@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -32,6 +32,39 @@ test('CLI validates before network access, requires model consent and redacts id
     await assert.rejects(execute(process.execPath,
       [runner, '--config', configPath, '--users', '46', '--dry-run'], options),
     error => error.code === 1 && error.stderr.includes('users must be'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('CLI image dry-run uses discovered turn totals and validates files before browser startup', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'chatbotiahub-image-cli-'));
+  try {
+    const configPath = join(directory, 'config.json');
+    await writeFile(configPath, JSON.stringify(config({ users: 2, rounds: 99, imageDirectory: './data' })));
+    await writeFile(join(directory, 'accounts.local.json'), JSON.stringify([
+      { username: 'private-student1', password: 'secret' },
+      { username: 'private-student2', password: 'secret' },
+    ]));
+    await mkdir(join(directory, 'data'));
+    for (const name of ['private-student1-turn1-1.png', 'private-student1-turn1-2.jpg',
+      'private-student1-turn2-1.jpg', 'private-student2-turn1-1.png']) {
+      await writeFile(join(directory, 'data', name), 'synthetic image');
+    }
+    const options = { env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: join(directory, 'no-browser') } };
+    const args = [runner, '--config', configPath, '--mode', 'chat', '--allow-model-requests', '--dry-run'];
+    const result = await execute(process.execPath, args, options);
+    const plan = JSON.parse(result.stdout).plan;
+    assert.equal(plan.rounds, 2);
+    assert.equal(plan.maxPromptSubmissions, 3);
+    assert.ok(!result.stdout.includes('private-student'));
+    assert.ok(!result.stdout.includes(directory));
+    await assert.rejects(execute(process.execPath, [...args, '--rounds', '1'], options),
+      error => error.code === 1 && error.stderr.includes('cannot override image-driven'));
+    await rm(join(directory, 'data', 'private-student2-turn1-1.png'));
+    await assert.rejects(execute(process.execPath, args, options),
+      error => error.code === 1 && error.stderr.includes('No PNG/JPG image turns found for user 2') &&
+        !error.stderr.includes('private-student'));
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -10,6 +10,7 @@ export function config(overrides = {}) {
       launch: '#launch', chatInput: '#input', send: '#send',
       busy: '#busy', assistantMessage: '.assistant',
       chatError: '.chat-error',
+      fileInput: '#files', attachmentReady: '.attachment-ready',
     },
     ...overrides,
   };

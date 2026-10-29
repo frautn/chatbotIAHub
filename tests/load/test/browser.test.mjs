@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { after, before, test } from 'node:test';
 import { chromium } from 'playwright';
-import { launchStudent, runWorkload } from '../lib.mjs';
+import { launchStudent, readImageTurns, runWorkload } from '../lib.mjs';
 import { config } from './helpers.mjs';
 
 let browser;
@@ -17,6 +17,7 @@ let tool;
 let moodleOrigin;
 let toolOrigin;
 let submissions = 0;
+let uploads = [];
 const logins = new Set();
 const accounts = [
   { username: 'student-1', password: 'secret-1' },
@@ -32,20 +33,51 @@ async function serve(handler) {
 
 before(async () => {
   browser = await chromium.launch();
-  tool = await serve((request, response) => {
+  tool = await serve(async (request, response) => {
     if (request.url.startsWith('/count')) {
       submissions++;
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      if (body) uploads.push(JSON.parse(body));
       if (request.url.includes('limited')) response.statusCode = 429;
       response.end('ok');
       return;
     }
     response.setHeader('Content-Type', 'text/html');
     response.end(`<textarea id="input"></textarea><button id="send">Send</button>
+      <input id="files" type="file" accept="image/png,image/jpeg" multiple hidden>
+      <div id="attachments"></div>
       <button id="busy" hidden>Stop</button><div id="messages"></div>
       <script>
+        const files = document.querySelector('#files');
+        const attachments = document.querySelector('#attachments');
+        files.onchange = () => {
+          setTimeout(() => {
+            ${request.url === '/upload-error' ? `
+              const error = document.createElement('div');
+              error.className = 'chat-error';
+              error.textContent = 'Upload failed';
+              document.body.append(error);
+            ` : ''}
+            ${request.url === '/upload-stuck' ? '' : `
+              attachments.replaceChildren(...Array.from(files.files, file => {
+                const item = document.createElement('div');
+                item.className = 'attachment-ready';
+                item.textContent = file.name;
+                return item;
+              }));
+            `}
+          }, 150);
+        };
         document.querySelector('#send').onclick = async () => {
           document.querySelector('#busy').hidden = false;
-          await fetch(${JSON.stringify(request.url === '/limited' ? '/count?limited' : '/count')});
+          const images = await Promise.all(Array.from(files.files, async file => ({
+            name: file.name, type: file.type, contents: await file.text(),
+          })));
+          await fetch(${JSON.stringify(request.url === '/limited' ? '/count?limited' : '/count')},
+            { method: 'POST', body: JSON.stringify(images) });
+          attachments.replaceChildren();
+          files.value = '';
           setTimeout(() => {
             const message = document.createElement('div');
             message.className = 'assistant';
@@ -144,6 +176,64 @@ test('real browser contexts log in independently, launch popups and finish all c
   for (const account of accounts) {
     assert.ok(!report.includes(account.username));
     assert.ok(!report.includes(account.password));
+  }
+});
+
+test('each student uploads every image for each turn and stops when their own images run out', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'load-browser-images-'));
+  submissions = 0;
+  uploads = [];
+  try {
+    const names = ['student-1-turn1-2.jpg', 'student-1-turn1-1.png',
+      'student-1-turn2-1.png', 'student-2-turn1-1.jpg'];
+    for (const name of names) await writeFile(join(directory, name), `synthetic ${name}`);
+    const settings = fixtureConfig({ rounds: 99, imageDirectory: directory });
+    settings.imageTurns = await readImageTurns(directory, accounts);
+    const result = await runWorkload(browser, settings, accounts, 'chat');
+    assert.equal(result.passed, true);
+    assert.equal(result.completedChats, 3);
+    assert.equal(result.maxPromptSubmissions, 3);
+    assert.equal(result.rounds, 2);
+    assert.equal(submissions, 3);
+    assert.deepEqual(result.events.filter(event => event.phase === 'chat')
+      .map(({ user, round }) => [user, round]), [[1, 1], [2, 1], [1, 2]]);
+    assert.deepEqual(uploads.map(images => images.map(image => image.name)).sort(), [
+      ['student-1-turn1-1.png', 'student-1-turn1-2.jpg'],
+      ['student-1-turn2-1.png'], ['student-2-turn1-1.jpg'],
+    ]);
+    for (const image of uploads.flat()) {
+      assert.equal(image.contents, `synthetic ${image.name}`);
+      assert.equal(image.type, image.name.endsWith('.png') ? 'image/png' : 'image/jpeg');
+    }
+    const report = JSON.stringify(result);
+    assert.ok(!report.includes(directory));
+    assert.ok(!report.includes('student-1'));
+    assert.equal(browser.contexts().length, 0);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('unfinished or failed uploads do not submit prompts or continue to later turns', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'load-browser-upload-'));
+  try {
+    const image = join(directory, 'student-1-turn1-1.png');
+    await writeFile(image, 'synthetic image');
+    for (const target of ['/upload-stuck', '/upload-error']) {
+      submissions = 0;
+      const settings = fixtureConfig({
+        users: 1, imageDirectory: directory, imageTurns: [[[image], [image]]],
+        activityUrl: `${moodleOrigin}/activity?target=${target}`,
+      });
+      const result = await runWorkload(browser, settings, accounts.slice(0, 1), 'chat');
+      assert.equal(result.passed, false);
+      assert.equal(result.completedChats, 0);
+      assert.equal(submissions, 0);
+      assert.equal(result.events.filter(event => event.phase === 'chat').length, 1);
+      assert.equal(browser.contexts().length, 0);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 

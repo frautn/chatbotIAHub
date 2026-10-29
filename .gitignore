@@ -91,6 +91,7 @@ node_modules/
 /tests/load/config.local.json
 /tests/load/accounts.local.json
 /tests/load/results/
+/tests/load/data/
 .cyberbrain/
 .ruff_cache/
 .mypy_cache/

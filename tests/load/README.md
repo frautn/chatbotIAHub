@@ -6,9 +6,9 @@ public nginx/Gateway route. Each student gets an isolated browser context.
 There is no forged LTI token, trusted-header bypass, shared student session, or
 saved authentication state.
 
-The first version supports text conversations, popup/same-tab/iframe tools, staggered
-launches and synchronized chat rounds. It does not automate image uploads,
-forced reconnects, grade verification, or conversation-ownership assertions.
+The harness supports text conversations and per-user image turns,
+popup/same-tab/iframe tools, staggered launches and synchronized chat rounds.
+It does not automate forced reconnects, grade verification, or conversation-ownership assertions.
 It supplements, not replaces, the [capacity acceptance plan](../../docs/scaling.md).
 
 ## Safety and prerequisites
@@ -86,6 +86,9 @@ Edit the local files, not the examples:
 - `timeoutMs`: timeout per browser operation/readiness wait, not an overall run deadline.
 - `headless`: set `false` for calibration on a machine with a graphical display.
 - `prompt`: a representative synthetic text prompt. The same text is used on each turn.
+- `imageDirectory`: `null` (or omitted) for text-only rounds; otherwise a path
+  relative to the configuration file, such as `./data/termodinamica-preg-001`.
+  Image files determine each user's turns in this mode, instead of `rounds`.
 
 Keep local filenames as shown so Git ignores them. If you choose alternative
 filenames or locations, explicitly exclude them before adding files to Git.
@@ -107,6 +110,8 @@ Use browser developer tools to identify stable CSS or Playwright locator selecto
 | `busy` | Unique element visible **only during generation**, such as a stop-generation button |
 | `assistantMessage` | One element per assistant response containing the response text, in conversation order; exclude user messages and error banners |
 | `chatError` | Error banners/failed-generation elements; must not match normal assistant content |
+| `fileInput` | In image mode, the unique `<input type="file">` for composer attachments (may be hidden); must support multiple images |
+| `attachmentReady` | In image mode, one visible composer element per fully uploaded, ready-to-send attachment; exclude uploading/failed items and attachments in conversation history |
 
 Selectors are strings accepted by Playwright's `locator()`. The tool is discovered
 by its expected origin and visible composer, including in an iframe or a new tab.
@@ -131,6 +136,9 @@ Finally, approve a single model submission to verify generation selectors:
 npm run load -- --mode chat --users 1 --rounds 1 --allow-model-requests
 ```
 
+For image mode, omit `--rounds`: the selected user's files determine the number
+of submissions. Start calibration with a data folder containing just one turn.
+
 The harness arms the busy-element wait before clicking send, requires generation
 to start and finish, then requires a newly added, nonempty assistant reply and no
 visible chat errors. A missing/misconfigured busy indicator, empty reply, or
@@ -138,6 +146,64 @@ timeout is a failure, not a successful stream. Very fast responses whose busy
 state cannot be observed may fail conservatively; verify this with the deployed UI
 before increasing load. The selectors define this UI-level completion contract;
 this is not a protocol-level assertion of an SSE finish event or model correctness.
+
+## Per-user image conversations
+
+Set `imageDirectory` in your local configuration, and calibrate `fileInput` and
+`attachmentReady` against your deployed UI. For example:
+
+```json
+{
+  "imageDirectory": "./data/termodinamica-preg-001"
+}
+```
+
+Place PNG/JPG files directly in that directory:
+
+```text
+estudiante001-turn1-1.png
+estudiante001-turn1-2.jpg
+estudiante001-turn2-1.png
+estudiante002-turn1-1.jpg
+```
+
+The username must match the account exactly, including case. Extensions are
+case-insensitive `.png` or `.jpg`. Turn numbers and image indexes are positive
+integers without leading zeros. Turns must start at 1 without gaps, up to 1000;
+image indexes need not be consecutive. Files are ordered numerically, not
+lexicographically. Duplicate indexes within a turn (even across extensions),
+empty/unreadable files, matching non-file entries, and users with no matching
+images fail preflight. Unrelated filenames and unsupported extensions are ignored.
+The harness checks readability, not image decoding; supply valid images supported
+by the deployed model.
+
+Each selected account sends the configured text prompt plus **all** its turn-1
+images, waits for the reply, then sends its turn-2 images, continuing until its
+files are exhausted. Students with fewer turns stop submitting while the rest
+continue. Remaining students still synchronize at each round; any failed upload,
+generation, or service error stops subsequent rounds for everyone.
+
+The existing `users`/`--users` setting still selects the first N accounts from
+the account file. Set it to the number of accounts to exercise everyone.
+`rounds` in the configuration is ignored in image mode and `--rounds` is rejected
+to avoid silently truncating image conversations. Dry-run validates the image
+files (even in launch mode) and reports the maximum turn count and the sum of
+per-user turns, not `users * rounds`. It does not upload or contact the deployment.
+
+```bash
+npm run load -- --mode chat --users 1 --allow-model-requests --dry-run
+# After checking the plan and the image count/cost:
+npm run load -- --mode chat --users 1 --allow-model-requests
+```
+
+Switch datasets by changing `imageDirectory`. Local data under `tests/load/data/`
+is ignored by Git; use synthetic images only. The harness uploads through the
+normal composer file input and requires the exact number of ready attachments
+before sending. A thumbnail that appears before upload completion is not a valid
+`attachmentReady` selector. File selection/readiness failures fail the journey;
+filenames and local paths are not included in plans or reports.
+Completion timing starts at send, after attachment readiness, so it excludes
+upload preparation time; overall run duration includes uploads.
 
 ## Run the workload
 
@@ -230,6 +296,7 @@ npm test
 These tests run only against temporary local HTTP fixtures and Chromium, with no
 real Moodle, LTI platform or model API calls. They check configuration, CLI spend
 consent, independent logins, popup/iframe discovery, synchronized rounds, empty
-responses, timeout behavior, context cleanup and sanitized output. The fixtures
+responses, timeout behavior, image discovery/grouping, per-user file uploads,
+unequal turn counts, upload failures, context cleanup and sanitized output. The fixtures
 simulate the redirect/UI boundary; they do not validate LTI signatures. Keep the
 existing [Gateway functional suite](../../gateway/README.md#development) for that.

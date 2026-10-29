@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
-import { ConfigurationError, readConfig, runWorkload } from './lib.mjs';
+import { ConfigurationError, readConfig, runWorkload, workloadPlan } from './lib.mjs';
 
 let phase = 'configuration';
 
@@ -31,14 +31,7 @@ async function main() {
   if (values.mode === 'chat' && !values['allow-model-requests']) {
     throw new ConfigurationError('Chat mode requires --allow-model-requests and an agreed provider-spend limit.');
   }
-  const plan = {
-    mode: values.mode,
-    users: config.users,
-    rounds: values.mode === 'chat' ? config.rounds : 0,
-    maxPromptSubmissions: values.mode === 'chat' ? config.users * config.rounds : 0,
-    launchIntervalMs: config.launchIntervalMs,
-    thinkMs: config.thinkMs,
-  };
+  const plan = workloadPlan(config, values.mode);
   console.log(JSON.stringify({ plan }, null, 2));
   if (values['dry-run']) return;
   phase = 'browser-startup';

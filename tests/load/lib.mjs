@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -35,6 +35,16 @@ export function validateConfig(config, accounts) {
   requireValue(typeof config.headless === 'boolean', 'headless must be boolean.');
   requireValue(typeof config.prompt === 'string' && config.prompt.trim().length > 0,
     'A nonempty synthetic prompt is required.');
+  requireValue(config.imageDirectory == null ||
+    (typeof config.imageDirectory === 'string' && config.imageDirectory.trim().length > 0),
+  'imageDirectory must be null or a nonempty directory path.');
+  if (config.imageDirectory != null) {
+    for (const key of ['fileInput', 'attachmentReady']) {
+      requireValue(typeof config.selectors?.[key] === 'string' &&
+        config.selectors[key].trim() && !config.selectors[key].includes('REPLACE_'),
+      `Configure and verify selectors.${key}.`);
+    }
+  }
   for (const key of ['username', 'password', 'login', 'chatInput', 'send', 'busy', 'assistantMessage', 'chatError']) {
     requireValue(typeof config.selectors?.[key] === 'string' &&
       config.selectors[key].trim() && !config.selectors[key].includes('REPLACE_'),
@@ -55,12 +65,71 @@ export function validateConfig(config, accounts) {
   return config;
 }
 
+export async function readImageTurns(directory, accounts) {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    throw new ConfigurationError('Cannot read imageDirectory.');
+  }
+  return Promise.all(accounts.map(async (account, user) => {
+    const turns = new Map();
+    for (const entry of entries) {
+      const prefix = `${account.username}-turn`;
+      if (!entry.name.startsWith(prefix)) continue;
+      const match = /^([1-9]\d*)-([1-9]\d*)\.(png|jpg)$/i.exec(entry.name.slice(prefix.length));
+      if (!match) continue;
+      requireValue(entry.isFile(), `Image entry for user ${user + 1} must be a regular file.`);
+      const turn = Number(match[1]);
+      const index = Number(match[2]);
+      requireValue(Number.isSafeInteger(turn) && turn <= 1000 && Number.isSafeInteger(index),
+        `Image turn/index for user ${user + 1} is out of range.`);
+      if (!turns.has(turn)) turns.set(turn, new Map());
+      requireValue(!turns.get(turn).has(index),
+        `Duplicate image index for user ${user + 1}, turn ${turn}.`);
+      const path = resolve(directory, entry.name);
+      let contents;
+      try {
+        contents = await readFile(path);
+      } catch {
+        throw new ConfigurationError(`Cannot read image for user ${user + 1}, turn ${turn}.`);
+      }
+      requireValue(contents.length > 0, `Empty image for user ${user + 1}, turn ${turn}.`);
+      turns.get(turn).set(index, path);
+    }
+    requireValue(turns.size > 0, `No PNG/JPG image turns found for user ${user + 1}.`);
+    const ordered = [...turns].sort(([a], [b]) => a - b);
+    requireValue(ordered.every(([turn], index) => turn === index + 1),
+      `Image turns for user ${user + 1} must start at 1 without gaps.`);
+    return ordered.map(([, images]) => [...images].sort(([a], [b]) => a - b).map(([, path]) => path));
+  }));
+}
+
 export async function readConfig(path, overrides = {}) {
   const config = { ...JSON.parse(await readFile(path, 'utf8')), ...overrides };
   requireValue(typeof config.accountsFile === 'string', 'accountsFile is required.');
   const accounts = JSON.parse(await readFile(resolve(dirname(path), config.accountsFile), 'utf8'));
   validateConfig(config, accounts);
-  return { config, accounts: accounts.slice(0, config.users) };
+  const selected = accounts.slice(0, config.users);
+  if (config.imageDirectory != null) {
+    requireValue(overrides.rounds === undefined, '--rounds cannot override image-driven turns.');
+    config.imageTurns = await readImageTurns(resolve(dirname(path), config.imageDirectory), selected);
+  }
+  return { config, accounts: selected };
+}
+
+export function workloadPlan(config, mode) {
+  return {
+    mode,
+    users: config.users,
+    rounds: mode === 'chat' ?
+      (config.imageTurns ? Math.max(...config.imageTurns.map(turns => turns.length)) : config.rounds) : 0,
+    maxPromptSubmissions: mode === 'chat' ?
+      (config.imageTurns ? config.imageTurns.reduce((sum, turns) => sum + turns.length, 0) :
+        config.users * config.rounds) : 0,
+    launchIntervalMs: config.launchIntervalMs,
+    thinkMs: config.thinkMs,
+  };
 }
 
 export function percentile(values, fraction) {
@@ -100,7 +169,7 @@ export async function launchStudent(context, config, account) {
   return findChat(context, config);
 }
 
-export async function sendPrompt(frame, config) {
+export async function sendPrompt(frame, config, images = []) {
   const { selectors, timeoutMs } = config;
   const messages = frame.locator(selectors.assistantMessage);
   const before = await messages.count();
@@ -109,6 +178,14 @@ export async function sendPrompt(frame, config) {
   const errors = frame.locator(selectors.chatError).filter({ visible: true });
   requireValue(await errors.count() === 0, 'Chat has a visible error before submission.');
   await input.fill(config.prompt);
+  if (images.length) {
+    const attachments = frame.locator(selectors.attachmentReady);
+    requireValue(await attachments.count() === 0, 'Composer contains unexpected ready attachments.');
+    await frame.locator(selectors.fileInput).setInputFiles(images, { timeout: timeoutMs });
+    await attachments.nth(images.length - 1).waitFor({ state: 'visible', timeout: timeoutMs });
+    requireValue(await attachments.count() === images.length, 'Unexpected number of ready attachments.');
+    requireValue(await errors.count() === 0, 'Chat reported a visible upload error.');
+  }
   const start = performance.now();
   // Arm before clicking; never equate HTTP 200 or first text with stream completion.
   const started = busy.waitFor({ state: 'visible', timeout: timeoutMs });
@@ -123,6 +200,7 @@ export async function sendPrompt(frame, config) {
 }
 
 export async function runWorkload(browser, config, accounts, mode) {
+  const plan = workloadPlan(config, mode);
   const contexts = [];
   const events = [];
   const httpErrors = {};
@@ -150,7 +228,7 @@ export async function runWorkload(browser, config, accounts, mode) {
         const frame = await launchStudent(context, config, account);
         event.ok = true;
         event.durationMs = Math.round(performance.now() - started);
-        return { frame, user: index + 1 };
+        return { frame, user: index + 1, imageTurns: config.imageTurns?.[index] };
       } catch (error) {
         event.error = phase;
         event.failure = error.name === 'TimeoutError' ? 'timeout' : 'browser-or-validation';
@@ -159,12 +237,13 @@ export async function runWorkload(browser, config, accounts, mode) {
     }));
     // Fail closed: an incomplete cohort must not generate a misleading load result.
     if (mode === 'chat' && students.every(Boolean) && !hasServiceErrors()) {
-      for (let round = 1; round <= config.rounds; round++) {
-        const results = await Promise.all(students.map(async ({ frame, user }) => {
+      for (let round = 1; round <= plan.rounds; round++) {
+        const active = students.filter(student => !student.imageTurns || round <= student.imageTurns.length);
+        const results = await Promise.all(active.map(async ({ frame, user, imageTurns }) => {
           const event = { user, phase: 'chat', round, ok: false };
           events.push(event);
           try {
-            Object.assign(event, await sendPrompt(frame, config), { ok: true });
+            Object.assign(event, await sendPrompt(frame, config, imageTurns?.[round - 1]), { ok: true });
           } catch (error) {
             event.error = 'send-or-stream-completion';
             event.failure = error.name === 'TimeoutError' ? 'timeout' : 'browser-or-validation';
@@ -172,7 +251,7 @@ export async function runWorkload(browser, config, accounts, mode) {
           return event.ok;
         }));
         if (!results.every(Boolean) || hasServiceErrors()) break;
-        if (round < config.rounds) await sleep(config.thinkMs);
+        if (round < plan.rounds) await sleep(config.thinkMs);
       }
     }
   } finally {
@@ -181,12 +260,12 @@ export async function runWorkload(browser, config, accounts, mode) {
   }
   const chats = events.filter(event => event.phase === 'chat');
   const failed = events.filter(event => !event.ok).length;
-  const expectedChats = mode === 'chat' ? config.users * config.rounds : 0;
+  const expectedChats = plan.maxPromptSubmissions;
   return {
     schemaVersion: 1,
     mode,
     users: config.users,
-    rounds: mode === 'chat' ? config.rounds : 0,
+    rounds: plan.rounds,
     maxPromptSubmissions: expectedChats,
     durationMs: Math.round(performance.now() - start),
     passed: !infrastructureError && failed === 0 && chats.length === expectedChats &&
