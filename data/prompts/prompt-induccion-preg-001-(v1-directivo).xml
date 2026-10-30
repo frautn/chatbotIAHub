@@ -34,21 +34,21 @@ Tu rol es de tutor para estudiantes ingresantes a la universidad, en un curso in
 </reglas_de_comportamiento>
 
 <pregunta>
-Sobre el plano $xy$ se tienen dos cables infinitos paralelos. Un cable está ubicado en $x=0$ y el otro en $x=d$, ambos extendiéndose paralelos al eje $y$. Por el cable en $x=0$ circula la corriente $i$ hacia abajo (hacia $-y$), y por el cable en $x=d$ circula la misma corriente $i$ hacia arriba (hacia $+y$). La corriente $i$ es constante en el tiempo. Una espira cuadrada se encuentra en el mismo plano que los dos cables, a la derecha de dichos cables, con dos de sus lados paralelos a los cables. Una fuerza externa tira de la espira hacia la derecha y la mantiene en movimiento, desplazándose horizontalmente hacia la derecha (alejándose de los cables). Determinar el sentido de la corriente inducida en la espira.
+Sobre el plano $xy$ se tienen dos cables infinitos paralelos entre sí y paralelos al eje $y$. Por el cable a la izquierda circula la corriente $i$ hacia abajo (hacia $-y$), y por el cable a la derecha circula la misma corriente $i$ hacia arriba (hacia $+y$). La corriente $i$ es constante en el tiempo. Una espira cuadrada se encuentra en el mismo plano que los dos cables, a la derecha de dichos cables, con dos de sus lados paralelos a los cables. Una fuerza externa tira de la espira hacia la derecha y la mantiene en movimiento, desplazándose horizontalmente hacia la derecha (alejándose de los cables). Determinar el sentido de la corriente inducida en la espira.
 </pregunta>
 
 <solucion_de_referencia>
 Esta sección es una referencia interna para evaluar; no la reproduzcas como solución para el estudiante.
 
-Se toma la espira completamente a la derecha de los dos cables ($x&gt;d$), con su plano en el plano $xy$, y se considera como normal positiva la dirección $+z$ (hacia el observador).
+Se considera que la espira está completamente a la derecha del cable que está más a la derecha, con su plano en el plano $xy$. Se toma como normal positiva la dirección $+z$ (hacia el observador).
 
-Por la regla de la mano derecha, el cable en $x=0$, cuya corriente va hacia $-y$, produce en la región de la espira un campo magnético hacia $+z$. El cable en $x=d$, cuya corriente va hacia $+y$, produce allí un campo hacia $-z$. La espira está más cerca del cable en $x=d$, por lo que su campo domina: el campo magnético neto a través de la espira apunta hacia $-z$.
+Por la regla de la mano derecha, el cable de la izquierda, cuya corriente va hacia $-y$, produce en la región de la espira un campo magnético hacia $+z$. El cable de la derecha, cuya corriente va hacia $+y$, produce allí un campo hacia $-z$. Como la espira está a la derecha de ambos cables, cada punto de la espira está más cerca del cable de la derecha que del cable de la izquierda. Dado que el campo de un cable rectilíneo infinito tiene magnitud inversamente proporcional a la distancia, domina la contribución del cable de la derecha. Por lo tanto, el campo magnético neto a través de la espira apunta hacia $-z$.
 
-Si $x>d$ es la coordenada horizontal de un punto de la espira, el campo neto perpendicular al plano es
+Para comprobar el signo del campo, sea $r$ la distancia horizontal entre un punto de la espira y el cable de la derecha, y sea $d$ la separación entre los cables. La distancia de ese punto al cable de la izquierda es $r+d$, por lo que
 
-$$B_z(x)=\frac{\mu_0 i}{2\pi}\left(\frac{1}{x}-\frac{1}{x-d}\right)&lt;0.$$
+$$B_z(r)=\frac{\mu_0 i}{2\pi}\left(\frac{1}{r+d}-\frac{1}{r}\right)&lt;0.$$
 
-Al alejarse la espira hacia la derecha, $B_z$ aumenta hacia cero en cada punto: su dirección sigue siendo $-z$, pero su magnitud disminuye. Por tanto, el flujo firmado $\Phi_B$ definido con normal positiva $+z$ es negativo y aumenta hacia cero ($d\Phi_B/dt&gt;0$).
+Al alejarse la espira hacia la derecha, aumenta la distancia $r$ de cada punto al cable de la derecha y el campo neto $B_z$ aumenta hacia cero: mantiene su dirección $-z$, pero disminuye su magnitud. Por tanto, el flujo firmado $\Phi_B$, definido con normal positiva $+z$, es negativo y aumenta hacia cero ($d\Phi_B/dt&gt;0$).
 
 La ley de Lenz indica que la corriente inducida debe producir un campo hacia $-z$ para oponerse a ese aumento del flujo firmado. Equivalentemente, con la convención de circulación positiva antihoraria alrededor de la normal $+z$, la ley de Faraday-Lenz da $\mathcal{E}=-d\Phi_B/dt&lt;0$. En el modelo resistivo usual del ejercicio, que desprecia la autoinducción, la corriente tiene el mismo signo que la fem, por lo que su sentido es horario.
 
@@ -71,15 +71,15 @@ Aplicando la regla de la mano derecha a la espira, un campo hacia $-z$ correspon
     </item>
     <item id="2">
       <puntaje>10</puntaje>
-      <criterio>Aplica correctamente la regla de la mano derecha al cable ubicado en $x=0$ y determina que su campo en la región de la espira apunta hacia $+z$.</criterio>
+      <criterio>Aplica correctamente la regla de la mano derecha al cable de la izquierda, cuya corriente va hacia $-y$, y determina que su campo en la región de la espira apunta hacia $+z$.</criterio>
     </item>
     <item id="3">
       <puntaje>10</puntaje>
-      <criterio>Aplica correctamente la regla de la mano derecha al cable ubicado en $x=d$ y determina que su campo en la región de la espira apunta hacia $-z$.</criterio>
+      <criterio>Aplica correctamente la regla de la mano derecha al cable de la derecha, cuya corriente va hacia $+y$, y determina que su campo en la región de la espira apunta hacia $-z$.</criterio>
     </item>
     <item id="4">
       <puntaje>15</puntaje>
-      <criterio>Compara las contribuciones de los dos cables usando que el campo de un cable rectilíneo infinito tiene magnitud proporcional a $1/r$ y justifica que, en toda la espira situada a la derecha de ambos, domina el campo del cable en $x=d$ por estar más cerca; concluye que el campo neto a través de la espira apunta hacia $-z$.</criterio>
+      <criterio>Compara las contribuciones de los dos cables usando que el campo de un cable rectilíneo infinito tiene magnitud proporcional a $1/r$ y justifica que, en toda la espira situada a la derecha de ambos, domina el campo del cable de la derecha por estar más cerca; concluye que el campo neto a través de la espira apunta hacia $-z$.</criterio>
     </item>
     <item id="5">
       <puntaje>10</puntaje>
