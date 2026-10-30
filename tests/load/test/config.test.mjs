@@ -16,6 +16,8 @@ test('validates identities, bounds, selectors and target origins', () => {
   assert.doesNotThrow(() => validateConfig(config(), accounts));
   for (const overrides of [
     { users: 0 }, { users: 46 }, { users: 1.5 }, { rounds: 0 }, { timeoutMs: 1 },
+    { generationTimeoutMs: 999 }, { generationTimeoutMs: 3600001 },
+    { generationTimeoutMs: null }, { generationTimeoutMs: '600000' },
     { thinkMs: -1 }, { headless: 'false' }, { prompt: '' },
     { imageDirectory: '' }, { imageDirectory: 1 },
     { activityUrl: 'https://unrelated.example/activity' },
@@ -24,6 +26,9 @@ test('validates identities, bounds, selectors and target origins', () => {
     { toolOrigin: 'https://user:password@chat.example.com' },
   ]) {
     assert.throws(() => validateConfig(config(overrides), accounts));
+  }
+  for (const generationTimeoutMs of [undefined, 1000, 600000, 3600000]) {
+    assert.doesNotThrow(() => validateConfig(config({ generationTimeoutMs }), accounts));
   }
   assert.throws(() => validateConfig(config({ users: 2 }), accounts), /separate account/);
   assert.throws(() => validateConfig(config({ users: 2 }), [...accounts, ...accounts]), /distinct/);

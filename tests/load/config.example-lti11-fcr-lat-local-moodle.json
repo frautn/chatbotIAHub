@@ -9,6 +9,7 @@
   "launchIntervalMs": 1000,
   "thinkMs": 10000,
   "timeoutMs": 120000,
+  "generationTimeoutMs": 600000,
   "headless": false,
   "prompt": "Synthetic load test: briefly explain the difference between speed and velocity.",
   "selectors": {

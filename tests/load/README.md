@@ -84,6 +84,12 @@ Edit the local files, not the examples:
   for simultaneous login/launch pressure.
 - `thinkMs`: pause between completed chat rounds.
 - `timeoutMs`: timeout per browser operation/readiness wait, not an overall run deadline.
+- `generationTimeoutMs`: time allowed for the busy indicator to disappear after
+  generation starts, including model reasoning and streaming. Examples use
+  600000 (10 minutes); allowed range is 1000-3600000. If omitted, uses `timeoutMs`
+  for backward compatibility. This does not delay a completed turn: as soon as
+  the busy indicator disappears and the reply is verified, the next round can
+  proceed after `thinkMs`.
 - `headless`: set `false` for calibration on a machine with a graphical display.
 - `prompt`: a representative synthetic text prompt. The same text is used on each turn.
 - `imageDirectory`: `null` (or omitted) for text-only rounds; otherwise a path
@@ -140,7 +146,7 @@ For image mode, omit `--rounds`: the selected user's files determine the number
 of submissions. Start calibration with a data folder containing just one turn.
 
 The harness arms the busy-element wait before clicking send, requires generation
-to start and finish, then requires a newly added, nonempty assistant reply and no
+to start and finish, then requires a new or updated, nonempty assistant reply and no
 visible chat errors. A missing/misconfigured busy indicator, empty reply, or
 timeout is a failure, not a successful stream. Very fast responses whose busy
 state cannot be observed may fail conservatively; verify this with the deployed UI
@@ -264,6 +270,9 @@ Reports include:
 
 - Per-user launch outcome and login-through-composer elapsed time.
 - Per-user/per-round chat outcome and send-through-completed-reply elapsed time.
+- Failed chat events include `failureStep` and attempt `durationMs` without page
+  contents. Steps distinguish `composer`, `file-selection`, `attachment-ready`,
+  `generation-start`, `generation-finish`, and `assistant-reply`.
 - Nearest-rank p95 for successful launches and completed chats; `null` if none.
 - Completed chats, failed journeys, and the maximum planned UI submissions.
 - Counts of HTTP responses with status >=400 across all browser contexts.
@@ -274,6 +283,17 @@ HTTP counts include Moodle, tool and third-party resources. Expected 401/403/404
 responses are reported for manual review but do not alone fail a completed
 journey. Network failures that do not yield an HTTP response are not included
 in these counts; journey timeouts/completion checks still apply.
+
+If a completed-looking reply times out, inspect the failed event's `failureStep`:
+`generation-start` suggests a missing/misconfigured busy selector (or a send that
+never starts generation); `generation-finish` means the busy element did not hide
+within `generationTimeoutMs`. Allow enough time for reasoning as well as output,
+and verify that `busy` matches only active generation. `assistant-reply` means
+generation ended but the selector did not yield a newly added, visible, nonempty
+reply. The harness accepts an appended response or changed text in the last
+response, including a placeholder that existed before submission. An unchanged
+previous reply cannot satisfy completion.
+Never replace completion checks with a fixed sleep or assume a timeout is success.
 
 **`passed` is functional completion under the selected load, not full capacity
 certification.** It does not enforce the report's non-generation API p95 or

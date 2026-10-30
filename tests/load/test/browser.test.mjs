@@ -47,8 +47,12 @@ before(async () => {
     response.end(`<textarea id="input"></textarea><button id="send">Send</button>
       <input id="files" type="file" accept="image/png,image/jpeg" multiple hidden>
       <div id="attachments"></div>
-      <button id="busy" hidden>Stop</button><div id="messages"></div>
+      <button id="busy" hidden>Stop</button><div id="messages">${
+        request.url === '/placeholder' ? '<div class="assistant"></div>' :
+          request.url === '/unchanged' ? '<div class="assistant">Previous answer</div>' : ''
+      }</div>
       <script>
+        let replyNumber = 0;
         const files = document.querySelector('#files');
         const attachments = document.querySelector('#attachments');
         files.onchange = () => {
@@ -79,9 +83,13 @@ before(async () => {
           attachments.replaceChildren();
           files.value = '';
           setTimeout(() => {
-            const message = document.createElement('div');
+            const message = ${['/placeholder', '/unchanged'].includes(request.url) ?
+              "document.querySelector('.assistant')" : "document.createElement('div')"};
             message.className = 'assistant';
-            message.textContent = ${JSON.stringify(request.url === '/empty' ? '' : 'Complete synthetic answer')};
+            message.textContent = ${request.url === '/placeholder' ?
+              "'Complete synthetic answer ' + (++replyNumber)" :
+              request.url === '/unchanged' ? "'Previous answer'" :
+              JSON.stringify(request.url === '/empty' ? '' : 'Complete synthetic answer')};
             document.querySelector('#messages').append(message);
             ${request.url === '/error' ? `
               const error = document.createElement('div');
@@ -90,7 +98,7 @@ before(async () => {
               document.body.append(error);
             ` : ''}
             ${request.url === '/stuck' ? '' : "document.querySelector('#busy').hidden = true;"}
-          }, 350);
+          }, ${request.url === '/slow' ? 1400 : 350});
         };
       </script>`);
   });
@@ -147,6 +155,7 @@ function fixtureConfig(overrides = {}) {
   return config({
     moodleOrigin, toolOrigin, activityUrl: `${moodleOrigin}/activity`,
     users: 2, rounds: 2, launchIntervalMs: 0, thinkMs: 0, timeoutMs: 2000,
+    generationTimeoutMs: undefined,
     ...overrides,
   });
 }
@@ -176,6 +185,26 @@ test('real browser contexts log in independently, launch popups and finish all c
   for (const account of accounts) {
     assert.ok(!report.includes(account.username));
     assert.ok(!report.includes(account.password));
+  }
+});
+
+test('preallocated and reused assistant containers complete both image turns', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'load-placeholder-'));
+  try {
+    const images = [join(directory, 'turn1.png'), join(directory, 'turn2.jpg')];
+    for (const image of images) await writeFile(image, 'synthetic image');
+    submissions = 0;
+    uploads = [];
+    const result = await runWorkload(browser, fixtureConfig({
+      users: 1, imageTurns: [images.map(image => [image])],
+      activityUrl: `${moodleOrigin}/activity?target=/placeholder`,
+    }), accounts.slice(0, 1), 'chat');
+    assert.equal(result.passed, true);
+    assert.equal(result.completedChats, 2);
+    assert.equal(submissions, 2);
+    assert.deepEqual(uploads.map(turn => turn.map(image => image.name)), [['turn1.png'], ['turn2.jpg']]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 
@@ -278,6 +307,66 @@ test('a stream that never finishes times out and stops subsequent rounds', async
   assert.equal(result.passed, false);
   assert.equal(result.completedChats, 0);
   assert.equal(result.events.filter(event => event.phase === 'chat').length, 2);
+  for (const event of result.events.filter(event => event.phase === 'chat')) {
+    assert.equal(event.failureStep, 'generation-finish');
+    assert.equal(event.failure, 'timeout');
+    assert.ok(event.durationMs >= 2000);
+  }
+});
+
+test('slow image replies finish under the generation budget and allow the next turn', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'load-slow-generation-'));
+  try {
+    const images = [join(directory, 'turn1.png'), join(directory, 'turn2.jpg')];
+    for (const image of images) await writeFile(image, 'synthetic image');
+    const settings = fixtureConfig({
+      users: 1, timeoutMs: 1000, generationTimeoutMs: 4000,
+      imageTurns: [images.map(image => [image])],
+      activityUrl: `${moodleOrigin}/activity?target=/slow`,
+    });
+    submissions = 0;
+    uploads = [];
+    const result = await runWorkload(browser, settings, accounts.slice(0, 1), 'chat');
+    assert.equal(result.passed, true);
+    assert.equal(result.completedChats, 2);
+    assert.equal(submissions, 2);
+    assert.deepEqual(uploads.map(turn => turn.map(image => image.name)), [['turn1.png'], ['turn2.jpg']]);
+    assert.ok(result.events.filter(event => event.phase === 'chat')
+      .every(event => event.completionMs >= 1400));
+    const limited = await runWorkload(browser, { ...settings, generationTimeoutMs: undefined },
+      accounts.slice(0, 1), 'chat');
+    assert.equal(limited.passed, false);
+    assert.equal(limited.completedChats, 0);
+    assert.equal(limited.events.at(-1).failureStep, 'generation-finish');
+    assert.equal(limited.events.at(-1).failure, 'timeout');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('reports distinguish incorrect busy and assistant selectors from unfinished generation', async () => {
+  for (const [key, selector, step] of [
+    ['busy', '#missing-busy', 'generation-start'],
+    ['assistantMessage', '.missing-assistant', 'assistant-reply'],
+  ]) {
+    const settings = fixtureConfig({ users: 1, rounds: 1, timeoutMs: 1000 });
+    settings.selectors[key] = selector;
+    const result = await runWorkload(browser, settings, accounts.slice(0, 1), 'chat');
+    assert.equal(result.passed, false);
+    assert.equal(result.events.at(-1).failureStep, step);
+    assert.equal(result.events.at(-1).failure, 'timeout');
+  }
+});
+
+test('an unchanged previous reply cannot pass as the current turn response', async () => {
+  const result = await runWorkload(browser, fixtureConfig({
+    users: 1, timeoutMs: 1000,
+    activityUrl: `${moodleOrigin}/activity?target=/unchanged`,
+  }), accounts.slice(0, 1), 'chat');
+  assert.equal(result.passed, false);
+  assert.equal(result.completedChats, 0);
+  assert.equal(result.events.at(-1).failureStep, 'assistant-reply');
+  assert.equal(result.events.at(-1).failure, 'timeout');
 });
 
 test('visible generation errors cannot pass as assistant responses', async () => {

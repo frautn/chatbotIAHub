@@ -2,8 +2,18 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { errors as playwrightErrors } from 'playwright';
 
 export class ConfigurationError extends Error {}
+
+class ChatStepError extends Error {
+  constructor(cause, step, elapsedMs) {
+    super(`Chat failed during ${step}.`, { cause });
+    this.name = cause.name;
+    this.step = step;
+    this.elapsedMs = elapsedMs;
+  }
+}
 
 function requireValue(condition, message) {
   if (!condition) throw new ConfigurationError(message);
@@ -32,6 +42,10 @@ export function validateConfig(config, accounts) {
     requireValue(Number.isInteger(config[key]) && config[key] >= min && config[key] <= max,
       `${key} must be an integer between ${min} and ${max}.`);
   }
+  requireValue(config.generationTimeoutMs === undefined ||
+    (Number.isInteger(config.generationTimeoutMs) &&
+      config.generationTimeoutMs >= 1000 && config.generationTimeoutMs <= 3600000),
+  'generationTimeoutMs must be an integer between 1000 and 3600000.');
   requireValue(typeof config.headless === 'boolean', 'headless must be boolean.');
   requireValue(typeof config.prompt === 'string' && config.prompt.trim().length > 0,
     'A nonempty synthetic prompt is required.');
@@ -171,32 +185,58 @@ export async function launchStudent(context, config, account) {
 
 export async function sendPrompt(frame, config, images = []) {
   const { selectors, timeoutMs } = config;
-  const messages = frame.locator(selectors.assistantMessage);
-  const before = await messages.count();
-  const input = frame.locator(selectors.chatInput);
-  const busy = frame.locator(selectors.busy);
-  const errors = frame.locator(selectors.chatError).filter({ visible: true });
-  requireValue(await errors.count() === 0, 'Chat has a visible error before submission.');
-  await input.fill(config.prompt);
-  if (images.length) {
-    const attachments = frame.locator(selectors.attachmentReady);
-    requireValue(await attachments.count() === 0, 'Composer contains unexpected ready attachments.');
-    await frame.locator(selectors.fileInput).setInputFiles(images, { timeout: timeoutMs });
-    await attachments.nth(images.length - 1).waitFor({ state: 'visible', timeout: timeoutMs });
-    requireValue(await attachments.count() === images.length, 'Unexpected number of ready attachments.');
-    requireValue(await errors.count() === 0, 'Chat reported a visible upload error.');
+  const generationTimeoutMs = config.generationTimeoutMs ?? timeoutMs;
+  const attemptStart = performance.now();
+  let step = 'composer';
+  try {
+    const messages = frame.locator(selectors.assistantMessage);
+    const before = await messages.count();
+    const previousReply = before ? await messages.last().innerText({ timeout: timeoutMs }) : null;
+    const input = frame.locator(selectors.chatInput);
+    const busy = frame.locator(selectors.busy);
+    const errors = frame.locator(selectors.chatError).filter({ visible: true });
+    requireValue(await errors.count() === 0, 'Chat has a visible error before submission.');
+    await input.fill(config.prompt);
+    if (images.length) {
+      step = 'file-selection';
+      const attachments = frame.locator(selectors.attachmentReady);
+      requireValue(await attachments.count() === 0, 'Composer contains unexpected ready attachments.');
+      await frame.locator(selectors.fileInput).setInputFiles(images, { timeout: timeoutMs });
+      step = 'attachment-ready';
+      await attachments.nth(images.length - 1).waitFor({ state: 'visible', timeout: timeoutMs });
+      requireValue(await attachments.count() === images.length, 'Unexpected number of ready attachments.');
+      requireValue(await errors.count() === 0, 'Chat reported a visible upload error.');
+    }
+    const start = performance.now();
+    // Arm before clicking; never equate HTTP 200 or first text with stream completion.
+    step = 'generation-start';
+    const started = busy.waitFor({ state: 'visible', timeout: timeoutMs });
+    const clicked = frame.locator(selectors.send).click({ timeout: timeoutMs });
+    await Promise.all([started, clicked]);
+    step = 'generation-finish';
+    await busy.waitFor({ state: 'hidden', timeout: generationTimeoutMs });
+    requireValue(await errors.count() === 0, 'Chat reported a visible generation error.');
+    step = 'assistant-reply';
+    const deadline = performance.now() + timeoutMs;
+    let verified = false;
+    while (performance.now() < deadline) {
+      const count = await messages.count();
+      const reply = messages.last();
+      if (count > 0 && await reply.isVisible()) {
+        const text = await reply.innerText({ timeout: Math.max(1, deadline - performance.now()) });
+        if (count > before || text !== previousReply) {
+          requireValue(text.trim().length > 0, 'Empty assistant response.');
+          verified = true;
+          break;
+        }
+      }
+      await sleep(100);
+    }
+    if (!verified) throw new playwrightErrors.TimeoutError('No new or updated assistant reply.');
+    return { completionMs: Math.round(performance.now() - start) };
+  } catch (error) {
+    throw new ChatStepError(error, step, Math.round(performance.now() - attemptStart));
   }
-  const start = performance.now();
-  // Arm before clicking; never equate HTTP 200 or first text with stream completion.
-  const started = busy.waitFor({ state: 'visible', timeout: timeoutMs });
-  const clicked = frame.locator(selectors.send).click({ timeout: timeoutMs });
-  await Promise.all([started, clicked]);
-  await busy.waitFor({ state: 'hidden', timeout: timeoutMs });
-  requireValue(await errors.count() === 0, 'Chat reported a visible generation error.');
-  const reply = messages.nth(before);
-  await reply.waitFor({ state: 'visible', timeout: timeoutMs });
-  requireValue((await reply.innerText()).trim().length > 0, 'Empty assistant response.');
-  return { completionMs: Math.round(performance.now() - start) };
 }
 
 export async function runWorkload(browser, config, accounts, mode) {
@@ -247,6 +287,10 @@ export async function runWorkload(browser, config, accounts, mode) {
           } catch (error) {
             event.error = 'send-or-stream-completion';
             event.failure = error.name === 'TimeoutError' ? 'timeout' : 'browser-or-validation';
+            if (error instanceof ChatStepError) {
+              event.failureStep = error.step;
+              event.durationMs = error.elapsedMs;
+            }
           }
           return event.ok;
         }));
