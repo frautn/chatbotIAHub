@@ -27,14 +27,11 @@ if [[ -f "$script_dir/.env" ]]; then
 fi
 
 # The compose files require these variables even for "down"; placeholders are fine here.
-export MOODLE_SRC_DIR="${MOODLE_SRC_DIR:-/unused}"
-export MOODLE_DB_PASS="${MOODLE_DB_PASS:-unused}"
-export MOODLE_WWWROOT="${MOODLE_WWWROOT:-https://unused}"
 export LTI_PUBLIC_URL="${LTI_PUBLIC_URL:-https://unused}"
 export LTI_GATEWAY_SECRET_KEY="${LTI_GATEWAY_SECRET_KEY:-unused}"
 
-for name in lti moodle openwebui postgres; do
+for name in lti openwebui postgres; do
   docker compose -f "$script_dir/docker-compose-$name.yml" down "${args[@]}"
 done
 
-printf 'Removed Open WebUI, Moodle, LTI gateway, PostgreSQL and CloudBeaver containers.\n'
+printf 'Removed Open WebUI, LTI gateway, PostgreSQL and CloudBeaver containers.\n'
