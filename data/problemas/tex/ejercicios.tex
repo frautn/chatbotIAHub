@@ -1,0 +1,243 @@
+\documentclass[a4paper,11pt,dvipsnames]{article}
+\usepackage[a4paper,vmargin={15mm,20mm},hmargin={20mm,15mm}, includefoot, bottom=3.5cm]{geometry}
+
+\setlength\parindent{0pt}
+
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+
+\usepackage[per-mode=fraction, separate-uncertainty=true]{siunitx}
+\usepackage{physics}
+\AtBeginDocument{\RenewCommandCopy\qty\SI}
+
+\usepackage{pgfplots}
+\usepackage{tikz}
+\tikzset{axis/.style={thick,-latex}}
+\usetikzlibrary{decorations}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{arrows}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{calc}
+\pgfplotsset{compat=newest}
+\usetikzlibrary{patterns}
+
+\tikzstyle{axisarrow} = [-{Latex[inset=0pt,length=5pt]}]
+
+\usepackage{enumerate}
+\usepackage{fancybox}
+\usepackage{fancyhdr}
+\setlength{\headheight}{60pt}
+\pagestyle{fancy}
+\fancyhead{}
+\rhead{convocatoria \Large 2026}
+\lhead{\Large FCR}
+\chead{\Large Chatbot IA Hub}
+
+\begin{document}
+\thispagestyle{fancy}
+
+\noindent
+\begin{center}
+{\LARGE \vspace*{0.5cm} Ejercicios y preguntas}\par\medskip \textit{(Material para docentes)}
+\end{center}
+
+\vspace{20pt}
+
+\begin{itemize}
+ 
+
+
+\item \textbf{cinematica-ej-1:} Distancia entre auto y moto. \par\medskip
+
+  \begin{center}
+  \begin{minipage}{0.60\linewidth}
+  \textbf{Ejercicio:} Un automovilista se da cuenta al sobrepasar un motociclista que se trata de un amigo e instantáneamente (se desprecia el tiempo de reacción) aplica los frenos. Toda la información está contenida en el gráfico \textbf{\textit{v}} vs. \textbf{\textit{t}}, en el que se ha prendido el cronómetro en el instante en el que el auto sobrepasa la moto. A los $4\text{ s}$, ¿cuál es la distancia entre el auto y la moto?
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % Ejes principal y secundario
+  \draw[-latex, line width=1.2pt] (0, -0.4) -- (0, 3.5) node[left] {\textbf{\textit{v}}(km/h)};
+  \draw[-latex, line width=1.2pt] (-0.4, 0) -- (4.8, 0) node[below] {\textbf{\textit{t}}(s)};
+
+  % Origen
+  \node[below left] at (0, 0) {\textbf{0}};
+
+  % Valores en el eje vertical
+  \node[left] at (0, 2.8) {\textbf{90}};
+  \node[left] at (0, 1.68) {\textbf{54}};
+
+  % Valor en el eje horizontal
+  \node[below] at (2.4, 0) {\textbf{4}};
+
+  % Línea discontinua desde el punto de intersección
+  \draw[dashed, line width=0.8pt] (2.4, 1.68) -- (2.4, 0);
+
+  % Gráfica de la Moto (línea constante)
+  \draw[line width=1.4pt] (0, 1.68) -- (3.8, 1.68) node[above, pos=0.8] {moto};
+
+  % Gráfica del Auto (línea recta con pendiente negativa)
+  \draw[line width=1.4pt] (0, 2.8) -- (3.3, 1.25) node[above, pos=0.32] {auto};
+
+\end{tikzpicture}
+\end{center}
+
+\end{minipage}
+\end{center}
+
+
+
+
+\item \textbf{calorimetria-002 :} Aceite y hielo, buscar masa del aceite. \par\medskip
+
+\begin{center}
+\begin{minipage}{0.60\linewidth}    
+\textbf{Ejercicio:} Un calorímetro ideal y adiabático contiene, inicialmente, una masa de aceite de oliva a $80^\circ\text{C}$. Se introduce en el calorímetro un bloque de $100\text{ g}$ de hielo a $0^\circ\text{C}$. Luego de un rato, se encuentra que el hielo se ha fundido por completo, y tanto el agua como el aceite se encuentran a $40^\circ\text{C}$. Sabiendo que el calor específico del aceite de oliva es $c_\text{aceite} = 0.4\textrm{\,cal/(g $^\circ$C)}$, determinar la masa de aceite de oliva contenida en el calorímetro.
+\end{minipage}
+\end{center}
+
+\item \textbf{calorimetria-ej-003 :} Calor específico de un sólido. \par\medskip
+
+\begin{center}
+\begin{minipage}{0.60\linewidth}    
+
+\textbf{Ejercicio:} En un calorímetro adiabático hay un litro de agua a $80\,^{\circ}\text{C}$. Se introduce un sólido de $100\text{ gramos}$ que está a $-50\,^{\circ}\text{C}$ y que funde a una temperatura superior a los $100\,^{\circ}\text{C}$. Cuando el agua alcanza los $70\,^{\circ}\text{C}$ el sólido se encuentra a $-45\,^{\circ}\text{C}$.
+
+\begin{enumerate}
+    \item[\textbf{a)}] ¿Cuál es el calor específico del sólido?
+    \item[\textbf{b)}] ¿Cuál es la temperatura final, de equilibrio, del sistema y en qué estado se encuentra cada sustancia?
+\end{enumerate}
+
+
+\noindent\textbf{(Datos del agua:} \\
+calor específico en estado líquido $= 1\text{ kcal/kg}\,^{\circ}\text{C}$ \\
+calor latente de fusión $= 80\text{ kcal/kg}$ \\
+calor específico del hielo $= 0,5\text{ kcal/kg}\,^{\circ}\text{C}$\textbf{)}
+
+\end{minipage}
+\end{center}
+
+
+\item \textbf{termodinamica-001 :} Trabajo de un ciclo con proceso desconocido. \par\medskip
+
+\begin{center}
+\begin{minipage}{0.60\linewidth}
+  \textbf{Ejercicio:} La figura muestra un ciclo termodinámico para un gas ideal monoatómico. Se sabe que la temperatura del gas en el estado $a$ es $260\text{ K}$, y que el gas cede $800\text{ J}$ de calor en el proceso $c\to a$. Calcular el trabajo neto realizado por el gas en el ciclo.
+  
+  \begin{center}
+  \begin{tikzpicture}[scale=1]
+    \begin{axis}[
+      axis x line=bottom,
+      axis y line=left,
+      xmin=1.5, xmax=3.5,           %min y max para los ejes, NO PARA EL DOMINIO
+      ymin=0.25, ymax=2.5, 
+      xlabel={volumen [$\si{\litre}$]},
+      ylabel={presión [atm]},
+      xtick={2,3},
+      xticklabels={$2$,$3$},
+      ytick={0.75,2},
+      yticklabels={$0.75$,$2$}
+      ]
+    % \draw [color=blue, very thick][-latex](160pt,20pt)..controls(100pt,25pt) and (60pt,45pt)..(42pt,58pt);
+    \draw [color=blue, very thick][-latex](2,2)--(2.5,2);
+    \draw [color=blue, very thick](2.5,2)--(3,2);
+    \draw [color=blue, very thick][-latex] (2,0.75)--(2,1.5);
+    \draw [color=blue, very thick] (2,1.5)--(2,2);
+
+    % Parábola de c (3,2) a a (2,0.75): P(V) = 0.25*V^2 - 0.25
+    \addplot [color=blue, very thick, latex-, samples=50, domain=2.5:3] {1.25*(x-2)^2 + 0.75};
+    \addplot [color=blue, very thick, samples=50, domain=2:2.5] {1.25*(x-2)^2 + 0.75};
+
+    \draw [dashed] (2,0)--(2,0.75);
+    \draw [dashed] (3,0)--(3,2);
+    \draw [dashed] (0,0.75)--(2,0.75);
+    \draw [dashed] (0,2)--(2,2);
+    \filldraw(2,0.75)circle(2pt) (2,2)circle (2pt)(3,2)circle(2pt);
+    \draw (2,0.75) node [below left] {$a$};
+    \draw (2,2) node [above left] {$b$};
+    \draw (3,2) node [above right] {$c$};
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+
+\end{minipage}
+\end{center}
+
+\newpage
+
+\item \textbf{termodinamica-preg-1:} Comparar calores en dos trayectorias entre mismos estados. \par\medskip
+
+  \begin{center}
+  \begin{minipage}{0.60\linewidth}
+  \textbf{Pregunta:} Un gas ideal monoatómico evoluciona entre los estados $a$ y $c$ por dos trayectorias diferentes. La trayectoria $1$ pasa por el estado intermedio $b$, mientras que la trayectoria $2$ es directa de $a$ a $c$. ¿En cuál de las dos trayectorias el gas intercambia más calor?
+
+  \begin{center}
+  \begin{tikzpicture}[scale=1]
+    \begin{axis}[
+      axis x line=bottom,
+      axis y line=left,
+      xmin=0, xmax=5.5,
+      ymin=0.5, ymax=2.5, 
+      xlabel={volumen},
+      ylabel={presión},
+      xtick={},
+      xticklabels={},
+      ytick={},
+      yticklabels={}
+      ]
+    \draw [color=blue, very thick][-latex](1,2)--(3.5,2);
+    \draw [color=blue, very thick](3.5,2)--(5,2);
+    \draw [color=blue, very thick][-latex] (5,2)--(5,1.5);
+    \draw [color=blue, very thick] (5,1.5)--(5,1);
+    \draw [color=blue, very thick][-latex] (1,2)--(3,1.5);
+    \draw [color=blue, very thick](3,1.5)--(5,1);
+
+    \filldraw(1,2)circle(2pt) (5,2)circle (2pt)(5,1)circle(2pt);
+    \draw (3,2) node [above] {$1$};
+    \draw (5,1.35) node [right] {$1$};
+    \draw (3,1.25) node [above] {$2$};
+    \draw (1,2) node [above left] {$a$};
+    \draw (5,2) node [above right] {$b$};
+    \draw (5,1) node [below right] {$c$};
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+  \end{minipage}
+  \end{center}
+
+
+\item \textbf{induccion-preg-1:} Se tira de una espira - determinar sentido de la corriente. \par\medskip
+
+  \begin{center}
+  \begin{minipage}{0.60\linewidth}
+  \textbf{Pregunta:} Una espira cuadrada se encuentra en el mismo plano que dos cables paralelos infinitos, como se muestra en la figura. Por los cables circula la corriente constante $i$, en los sentidos indicados. Si se tira de la espira hacia la derecha, ¿en qué sentido circula la corriente inducida? Justifique su respuesta.
+
+  \begin{center}
+      \def\alfa{45}
+      \def\dx{3}
+      \def\dy{0}
+      \begin{tikzpicture}[scale=0.5]
+          \draw (0,7) ellipse (0.2 and 0.1);
+          \draw [] (-0.2,7) -- (-.2,0.5);
+          \draw [] (0.2,7) -- (.2,0.5);
+          \draw [-{Stealth}, thick] (0,6)--(0,4) node[midway,left] {$i$};
+          \draw (2,7) ellipse (0.2 and 0.1);
+          \draw [] (1.8,7) -- (1.8,0.5);
+          \draw [] (2.2,7) -- (2.2,0.5);
+          \draw [-{Stealth}, thick] (2,4)--(2,6) node[midway,left] {$i$};
+
+          \draw [-{Stealth}, thick] (7.2,4)--(9,4) node[midway, above] {$F$};
+
+          \draw [] (4,6) -- (7,6) -- (7,2) -- (4,2) -- cycle;
+
+      \end{tikzpicture}
+    \end{center}
+  \end{minipage}
+  \end{center}
+
+
+\end{itemize}
+  
+\end{document}

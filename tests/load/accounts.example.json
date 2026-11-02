@@ -1,0 +1,10 @@
+[
+  {
+    "username": "load-student-01",
+    "password": "REPLACE_WITH_TEST_ACCOUNT_PASSWORD"
+  },
+  {
+    "username": "load-student-02",
+    "password": "REPLACE_WITH_TEST_ACCOUNT_PASSWORD"
+  }
+]
