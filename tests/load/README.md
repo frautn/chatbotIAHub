@@ -99,6 +99,12 @@ Edit the local files, not the examples:
 Keep local filenames as shown so Git ignores them. If you choose alternative
 filenames or locations, explicitly exclude them before adding files to Git.
 
+## LTI 1.1 or 1.3
+
+If the test uses a local Moodle site, such as the docker Moodle image used for Moodle development, then LTI 1.1 is mandatory.
+
+For testing a setup using LTI 1.3, a public Moodle site must be used, accessible from the internet.
+
 ## Calibrate with one student
 
 The custom Open WebUI frontend is an external image, not source in this
