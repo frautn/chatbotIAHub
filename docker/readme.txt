@@ -102,7 +102,7 @@ entered manually both in Moodle's "External tool" activity config and in the
 gateway's own consumers.json:
 
 
-0. If we need to cerate these keys or renew them, we need to load the .env values 
+0. If we need to create these keys or renew them, we need to load the .env values 
   cd /home/ubuntu/chatbotIAHub/docker
   set -a
   source .env
@@ -117,10 +117,10 @@ In Moodle, configure the External tool manually (LTI version 1.1/1.2) with:
 - Shared secret:  $LTI11_CONSUMER_SECRET
 - Custom parameters (optional, to pin a model): model=<id-from-LTI11_GATEWAY_MODELS>
 
-Use nginx-lti1.retag.lat.conf (or nginx-lti11.example.conf as a generic template)
+Use nginx-lti11.example.com.conf as a generic template
 as the public front end, proxying /lti11/ and /_lti11_auth to 127.0.0.1:8091.
 
-sudo ln -s /etc/nginx/sites-available/lti1.retag.lat /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/lti11.example.com /etc/nginx/sites-enabled/
 
 Running both Open WebUI instances
 ---------------------------------
