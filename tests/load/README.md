@@ -20,8 +20,10 @@ It does not automate forced reconnects, grade verification, or conversation-owne
 - Install Node.js 22+ and npm. No Python dependencies or production Compose
   changes are needed.
 - Provision distinct, non-admin synthetic Moodle accounts enrolled in the course
-  and allowed to access the chosen activity. Resolve first-login password changes,
-  consent screens and onboarding beforehand. SSO/MFA are not supported.
+  and allowed to access the chosen activity. Resolve first-login password changes
+  and onboarding beforehand; SSO/MFA are not supported. A recurring cookie-consent
+  banner can instead be handled by setting `selectors.cookieConsent` (see below)
+  since it is browser-based and reappears in every fresh, isolated context.
 - Select a student activity that pins the intended model. Do not use the shared
   administrator activity. Disable grade forwarding or use a test grade destination.
 - Confirm provider quotas and a spend limit outside this harness. Chat mode
@@ -117,6 +119,7 @@ Use browser developer tools to identify stable CSS or Playwright locator selecto
 |---|---|
 | `username`, `password`, `login` | Moodle login fields and submit button; examples use standard Moodle IDs |
 | `launch` | Activity launch button/link on the Moodle page, or `null` if navigation launches automatically |
+| `cookieConsent` | Optional "accept cookies" banner button, or `null`/omitted if the site has no such banner. Checked (and dismissed if present) right after the login page loads and right after the activity page loads; ignored if it never appears within a short window. Because each simulated user gets a fresh browser context, a site-level cookie banner reappears for every launch unless this is configured or the banner is disabled server-side |
 | `chatInput` | Unique visible editable message composer in the tool frame |
 | `send` | Unique send-message button |
 | `busy` | Unique element visible **only during generation**, such as a stop-generation button |
