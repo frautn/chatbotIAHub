@@ -21,11 +21,16 @@ class LaunchStore:
                     sourcedid TEXT,
                     outcome_service_url TEXT,
                     chat_id TEXT,
+                    model TEXT,
                     first_launched INTEGER,
                     updated INTEGER NOT NULL,
                     PRIMARY KEY (consumer_key, resource_link_id, user_id)
                 )"""
             )
+            # Pre-existing databases predate the model column: add it if missing.
+            existing_columns = {row[1] for row in db.execute("PRAGMA table_info(launches)")}
+            if "model" not in existing_columns:
+                db.execute("ALTER TABLE launches ADD COLUMN model TEXT")
             db.execute(
                 """CREATE TABLE IF NOT EXISTS nonces (
                     consumer_key TEXT NOT NULL,
@@ -59,7 +64,7 @@ class LaunchStore:
     def find(self, consumer_key, resource_link_id, user_id):
         with self._connect() as db:
             row = db.execute(
-                "SELECT context_id, sourcedid, outcome_service_url, chat_id, first_launched "
+                "SELECT context_id, sourcedid, outcome_service_url, chat_id, model, first_launched "
                 "FROM launches WHERE consumer_key=? AND resource_link_id=? AND user_id=?",
                 (consumer_key, resource_link_id, user_id),
             ).fetchone()
@@ -73,7 +78,8 @@ class LaunchStore:
             "sourcedid": row[1],
             "outcome_service_url": row[2],
             "chat_id": row[3],
-            "first_launched": row[4],
+            "model": row[4],
+            "first_launched": row[5],
         }
 
     def find_by_chat_id(self, chat_id):
@@ -82,7 +88,7 @@ class LaunchStore:
         with self._connect() as db:
             row = db.execute(
                 "SELECT consumer_key, resource_link_id, user_id, context_id, sourcedid, "
-                "outcome_service_url, chat_id, first_launched FROM launches WHERE chat_id=?",
+                "outcome_service_url, chat_id, model, first_launched FROM launches WHERE chat_id=?",
                 (chat_id,),
             ).fetchone()
         if not row:
@@ -95,15 +101,18 @@ class LaunchStore:
             "sourcedid": row[4],
             "outcome_service_url": row[5],
             "chat_id": row[6],
-            "first_launched": row[7],
+            "model": row[7],
+            "first_launched": row[8],
         }
 
-    def set_chat_id(self, consumer_key, resource_link_id, user_id, chat_id):
+    def set_chat_id(self, consumer_key, resource_link_id, user_id, chat_id, model=None):
+        """Links chat_id to this launch, tagged with the model it was resolved
+        for (if any), so a later model change can be told apart from a cache hit."""
         with self._connect() as db:
             db.execute(
-                "UPDATE launches SET chat_id=? "
+                "UPDATE launches SET chat_id=?, model=? "
                 "WHERE consumer_key=? AND resource_link_id=? AND user_id=?",
-                (chat_id, consumer_key, resource_link_id, user_id),
+                (chat_id, model, consumer_key, resource_link_id, user_id),
             )
 
     def unclaimed(self):

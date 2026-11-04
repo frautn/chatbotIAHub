@@ -95,13 +95,17 @@ def claim_chat_by_email(store, settings, email, chat_id):
 def resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, model):
     """Chat id to resume for this resource link, if one can be determined.
 
-    A resource link's chat id is sticky once found: the first launch after a
-    chat exists claims it, and every later launch reuses it directly.
+    A resource link's chat id is sticky once found *for the model it was
+    resolved with*: the first launch after a chat exists claims it, and every
+    later launch reuses it directly as long as the launch's model hasn't
+    changed. If the activity is later repinned to a different model, the
+    stale chat is dropped and a chat matching the new model is looked up
+    again, so a model change always takes effect on the next launch.
     """
     record = store.find(iss, client_id, link_id, sub)
     if not record:
         return None
-    if record["chat_id"]:
+    if record["chat_id"] and record["model"] == model:
         return record["chat_id"]
     if not settings.webui_internal_url:
         return None
@@ -110,7 +114,7 @@ def resolve_chat_id(store, settings, iss, client_id, link_id, sub, identity, mod
         settings.webui_internal_url, identity[0], identity[1], model, exclude
     )
     if chat_id:
-        store.set_chat_id(iss, client_id, link_id, sub, chat_id)
+        store.set_chat_id(iss, client_id, link_id, sub, chat_id, model)
     return chat_id
 
 

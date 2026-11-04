@@ -42,18 +42,25 @@ def claim_chat_by_email(store, settings, email, chat_id):
 
 
 def resolve_chat_id(store, settings, consumer_key, link_id, user_id, identity, model):
-    """Chat id to resume for this resource link, if one can be determined."""
+    """Chat id to resume for this resource link, if one can be determined.
+
+    A resource link's chat id is sticky once found *for the model it was
+    resolved with*: later launches reuse it directly only while the launch's
+    model still matches. If the configured model changes (e.g. a teacher
+    repins the activity to a different model), the stale chat is dropped and
+    a chat matching the new model is looked up again.
+    """
     record = store.find(consumer_key, link_id, user_id)
     if not record:
         return None
-    if record["chat_id"]:
+    if record["chat_id"] and record["model"] == model:
         return record["chat_id"]
     if not settings.webui_internal_url:
         return None
     exclude = store.claimed_chat_ids(user_id, link_id)
     chat_id = find_resumable_chat(settings.webui_internal_url, identity[0], identity[1], model, exclude)
     if chat_id:
-        store.set_chat_id(consumer_key, link_id, user_id, chat_id)
+        store.set_chat_id(consumer_key, link_id, user_id, chat_id, model)
     return chat_id
 
 

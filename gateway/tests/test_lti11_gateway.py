@@ -150,6 +150,31 @@ def test_relaunch_resumes_previous_chat(settings):
     mocked_again.assert_not_called()
 
 
+def test_relaunch_with_changed_model_resolves_again(settings):
+    """A sticky chat id is only reused while the launch's model still
+    matches the model it was resolved with; a repinned activity must not
+    keep resuming a chat tied to the old model."""
+    client = _client_with_webui_internal_url(settings, "http://openwebui.internal")
+
+    with patch("lti_gateway.lti11.app.find_resumable_chat", return_value="chat-123") as mocked:
+        response = post_launch(client, launch_params(custom_model="model-a"))
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked.assert_called_once()
+
+    # Same model again: the sticky chat id is reused without another lookup.
+    with patch("lti_gateway.lti11.app.find_resumable_chat") as mocked_again:
+        response = post_launch(client, launch_params(custom_model="model-a"))
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-123"
+    mocked_again.assert_not_called()
+
+    # Activity repinned to a different model: must not blindly resume the stale chat.
+    with patch("lti_gateway.lti11.app.find_resumable_chat", return_value="chat-456") as mocked_new:
+        response = post_launch(client, launch_params(custom_model="model-b"))
+    assert response.headers["Location"] == f"{PUBLIC_URL}/c/chat-456"
+    mocked_new.assert_called_once()
+    assert mocked_new.call_args.args[3] == "model-b"
+
+
 def test_auth_rejects_missing_and_forged_sessions(client):
     from itsdangerous import URLSafeTimedSerializer
 
