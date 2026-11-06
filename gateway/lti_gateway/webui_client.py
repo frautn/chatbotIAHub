@@ -16,8 +16,12 @@ def find_resumable_chat(base_url, email, name, model, exclude_chat_ids):
     Signs in as the learner via Open WebUI's trusted-header auth (the same
     mechanism nginx uses), then picks their most recent chat that isn't
     already claimed by another resource link. When *model* is set, only a
-    chat whose `models` list contains it is eligible, so distinct
-    model-pinned activities never share a conversation.
+    chat whose `models` list is exactly `[model]` is eligible, so distinct
+    model-pinned activities never share a conversation. A chat's `models`
+    list can grow to include more than one id over its lifetime (e.g. if the
+    model was ever switched mid-conversation), so a looser "model is present
+    somewhere in the list" check would wrongly resume a chat that isn't
+    actually dedicated to the pinned model.
 
     Returns a chat id, or None if unavailable/not found. Never raises.
     """
@@ -61,6 +65,6 @@ def find_resumable_chat(base_url, email, name, model, exclude_chat_ids):
             chat_models = (detail.json().get("chat") or {}).get("models") or []
         except (requests.RequestException, ValueError):
             continue
-        if model in chat_models:
+        if chat_models == [model]:
             return chat_id
     return None
