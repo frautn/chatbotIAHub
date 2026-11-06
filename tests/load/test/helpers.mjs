@@ -7,7 +7,7 @@ export function config(overrides = {}) {
     ...structuredClone(example),
     selectors: {
       username: '#username', password: '#password', login: '#loginbtn',
-      launch: '#launch', chatInput: '#input', send: '#send',
+      launch: '#launch', cookieConsent: null, chatInput: '#input', send: '#send',
       busy: '#busy', assistantMessage: '.assistant',
       chatError: '.chat-error',
       fileInput: '#files', attachmentReady: '.attachment-ready',

@@ -203,6 +203,14 @@ correctly if the learner has one chatbot activity. `GATEWAY_WEBUI_INTERNAL_URL`
 defaults to `http://open-webui-lti:8080` in `docker-compose-lti.yml`; clear it
 to disable chat resuming entirely.
 
+The resolved chat id is sticky *for the model it was resolved with*: the
+gateway records which model matched, and later launches skip the Open WebUI
+lookup entirely as long as the activity's configured model hasn't changed.
+If a teacher repins the resource link to a different model, the next launch
+notices the mismatch, ignores the stale chat, and looks up (or starts) a chat
+for the new model instead — so a model change always takes effect, even for
+learners who already have a chat recorded for that resource link.
+
 ## Deploy
 
 1. Set `LTI_PUBLIC_URL`, `LTI_GATEWAY_SECRET_KEY`, `LTI_GATEWAY_API_TOKEN`

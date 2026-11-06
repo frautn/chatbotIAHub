@@ -67,6 +67,9 @@ export function validateConfig(config, accounts) {
   requireValue(config.selectors.launch === null ||
     (typeof config.selectors.launch === 'string' && config.selectors.launch.trim()),
   'selectors.launch must be null or a selector.');
+  requireValue(config.selectors.cookieConsent == null ||
+    (typeof config.selectors.cookieConsent === 'string' && config.selectors.cookieConsent.trim()),
+  'selectors.cookieConsent must be null, omitted, or a selector.');
   requireValue(Array.isArray(accounts) && accounts.length >= config.users,
     'Provide at least one separate account per user.');
   const selected = accounts.slice(0, config.users);
@@ -152,6 +155,21 @@ export function percentile(values, fraction) {
   return sorted[Math.ceil(sorted.length * fraction) - 1];
 }
 
+const COOKIE_CONSENT_TIMEOUT_MS = 5000;
+
+// Some sites show a cookie-consent banner on every fresh browser context (this
+// harness never persists storage state). Dismiss it if configured; skip silently
+// if it never appears, so sites without a banner are unaffected.
+async function dismissCookieConsent(page, config) {
+  if (!config.selectors.cookieConsent) return;
+  try {
+    await page.locator(config.selectors.cookieConsent)
+      .click({ timeout: Math.min(config.timeoutMs, COOKIE_CONSENT_TIMEOUT_MS) });
+  } catch {
+    // Banner did not appear within the window; nothing to dismiss.
+  }
+}
+
 async function findChat(context, config) {
   const deadline = performance.now() + config.timeoutMs;
   while (performance.now() < deadline) {
@@ -171,6 +189,7 @@ export async function launchStudent(context, config, account) {
   page.setDefaultTimeout(config.timeoutMs);
   page.setDefaultNavigationTimeout(config.timeoutMs);
   await page.goto(new URL('/login/index.php', config.moodleOrigin).href);
+  await dismissCookieConsent(page, config);
   await page.locator(config.selectors.username).fill(account.username);
   await page.locator(config.selectors.password).fill(account.password);
   await Promise.all([
@@ -179,6 +198,7 @@ export async function launchStudent(context, config, account) {
     page.locator(config.selectors.login).click(),
   ]);
   await page.goto(config.activityUrl);
+  await dismissCookieConsent(page, config);
   if (config.selectors.launch) await page.locator(config.selectors.launch).click();
   return findChat(context, config);
 }

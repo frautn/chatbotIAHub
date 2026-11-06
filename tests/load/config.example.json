@@ -17,6 +17,7 @@
     "password": "#password",
     "login": "#loginbtn",
     "launch": null,
+    "cookieConsent": null,
     "chatInput": "REPLACE_WITH_VERIFIED_CHAT_INPUT_SELECTOR",
     "fileInput": "REPLACE_WITH_VERIFIED_FILE_INPUT_SELECTOR",
     "attachmentReady": "REPLACE_WITH_VERIFIED_READY_ATTACHMENT_SELECTOR",

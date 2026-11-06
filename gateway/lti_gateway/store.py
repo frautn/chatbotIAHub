@@ -22,15 +22,17 @@ class LaunchStore:
                     context_id TEXT,
                     ags TEXT,
                     chat_id TEXT,
+                    model TEXT,
                     first_launched INTEGER,
                     updated INTEGER NOT NULL,
                     PRIMARY KEY (iss, client_id, resource_link_id, sub)
                 )"""
             )
-            # Pre-existing databases predate chat_id/first_launched: add them if missing.
+            # Pre-existing databases predate chat_id/model/first_launched: add them if missing.
             existing_columns = {row[1] for row in db.execute("PRAGMA table_info(launches)")}
             for column, ddl in (
                 ("chat_id", "ALTER TABLE launches ADD COLUMN chat_id TEXT"),
+                ("model", "ALTER TABLE launches ADD COLUMN model TEXT"),
                 ("first_launched", "ALTER TABLE launches ADD COLUMN first_launched INTEGER"),
             ):
                 if column not in existing_columns:
@@ -69,7 +71,7 @@ class LaunchStore:
     def find(self, iss, client_id, resource_link_id, sub):
         with self._connect() as db:
             row = db.execute(
-                "SELECT deployment_id, context_id, ags, chat_id, first_launched FROM launches "
+                "SELECT deployment_id, context_id, ags, chat_id, model, first_launched FROM launches "
                 "WHERE iss=? AND client_id=? AND resource_link_id=? AND sub=?",
                 (iss, client_id, resource_link_id, sub),
             ).fetchone()
@@ -80,7 +82,8 @@ class LaunchStore:
             "context_id": row[1],
             "ags": json.loads(row[2]) if row[2] else None,
             "chat_id": row[3],
-            "first_launched": row[4],
+            "model": row[4],
+            "first_launched": row[5],
         }
 
     def find_by_chat_id(self, chat_id):
@@ -89,7 +92,7 @@ class LaunchStore:
         with self._connect() as db:
             row = db.execute(
                 "SELECT iss, client_id, resource_link_id, sub, deployment_id, context_id, "
-                "ags, chat_id, first_launched FROM launches WHERE chat_id=?",
+                "ags, chat_id, model, first_launched FROM launches WHERE chat_id=?",
                 (chat_id,),
             ).fetchone()
         if not row:
@@ -103,15 +106,18 @@ class LaunchStore:
             "context_id": row[5],
             "ags": json.loads(row[6]) if row[6] else None,
             "chat_id": row[7],
-            "first_launched": row[8],
+            "model": row[8],
+            "first_launched": row[9],
         }
 
-    def set_chat_id(self, iss, client_id, resource_link_id, sub, chat_id):
+    def set_chat_id(self, iss, client_id, resource_link_id, sub, chat_id, model=None):
+        """Links chat_id to this launch, tagged with the model it was resolved
+        for (if any), so a later model change can be told apart from a cache hit."""
         with self._connect() as db:
             db.execute(
-                "UPDATE launches SET chat_id=? "
+                "UPDATE launches SET chat_id=?, model=? "
                 "WHERE iss=? AND client_id=? AND resource_link_id=? AND sub=?",
-                (chat_id, iss, client_id, resource_link_id, sub),
+                (chat_id, model, iss, client_id, resource_link_id, sub),
             )
 
     def unclaimed(self):

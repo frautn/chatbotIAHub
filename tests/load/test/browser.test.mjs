@@ -18,6 +18,7 @@ let moodleOrigin;
 let toolOrigin;
 let submissions = 0;
 let uploads = [];
+let showCookieBanner = false;
 const logins = new Set();
 const accounts = [
   { username: 'student-1', password: 'secret-1' },
@@ -103,6 +104,11 @@ before(async () => {
       </script>`);
   });
   toolOrigin = `http://127.0.0.1:${tool.address().port}`;
+  const cookieBanner = () => showCookieBanner ? `<div id="cookie-consent"
+      style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5)">
+      <button id="accept-cookies" onclick="document.getElementById('cookie-consent').remove()"
+        style="position:fixed;inset:0;width:100%;height:100%;">Accept cookies</button>
+    </div>` : '';
   moodle = await serve(async (request, response) => {
     response.setHeader('Content-Type', 'text/html');
     if (request.url === '/login/index.php' && request.method === 'POST') {
@@ -119,7 +125,8 @@ before(async () => {
       response.end();
     } else if (request.url === '/login/index.php') {
       response.end(`<form method="post"><input id="username" name="username">
-        <input id="password" name="password" type="password"><button id="loginbtn">Login</button></form>`);
+        <input id="password" name="password" type="password"><button id="loginbtn">Login</button></form>
+        ${cookieBanner()}`);
     } else if (request.url === '/my') {
       response.end('Dashboard');
     } else if (request.url.startsWith('/activity')) {
@@ -130,9 +137,9 @@ before(async () => {
       }
       const target = new URL(request.url, 'http://localhost').searchParams.get('target') ?? '/';
       response.end(request.url.includes('iframe') ?
-        `<iframe src="${toolOrigin}${target}"></iframe>` :
+        `<iframe src="${toolOrigin}${target}"></iframe>${cookieBanner()}` :
         `<a id="launch" target="${request.url.includes('same-tab') ? '_self' : '_blank'}"
-          href="${toolOrigin}${target}">Launch activity</a>`);
+          href="${toolOrigin}${target}">Launch activity</a>${cookieBanner()}`);
     } else {
       response.writeHead(404);
       response.end('Not found');
@@ -165,6 +172,40 @@ test('single login reaches the launched tool origin', async () => {
   try {
     const frame = await launchStudent(context,
       fixtureConfig({ moodleOrigin: `${moodleOrigin}/`, toolOrigin: `${toolOrigin}/` }), accounts[0]);
+    assert.equal(new URL(frame.url()).origin, toolOrigin);
+  } finally {
+    await context.close();
+  }
+});
+
+test('a configured cookieConsent selector dismisses a recurring banner on login and activity pages', async () => {
+  showCookieBanner = true;
+  const context = await browser.newContext();
+  try {
+    const frame = await launchStudent(context,
+      fixtureConfig({ selectors: { ...config().selectors, cookieConsent: '#accept-cookies' } }), accounts[0]);
+    assert.equal(new URL(frame.url()).origin, toolOrigin);
+  } finally {
+    showCookieBanner = false;
+    await context.close();
+  }
+});
+
+test('an unconfigured cookieConsent selector leaves a blocking banner in place', async () => {
+  showCookieBanner = true;
+  const context = await browser.newContext();
+  try {
+    await assert.rejects(launchStudent(context, fixtureConfig(), accounts[0]));
+  } finally {
+    showCookieBanner = false;
+    await context.close();
+  }
+});
+
+test('no cookieConsent selector configured is unaffected when no banner ever appears', async () => {
+  const context = await browser.newContext();
+  try {
+    const frame = await launchStudent(context, fixtureConfig(), accounts[0]);
     assert.equal(new URL(frame.url()).origin, toolOrigin);
   } finally {
     await context.close();
