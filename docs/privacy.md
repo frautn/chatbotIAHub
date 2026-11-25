@@ -31,7 +31,18 @@ If you believe it was triggered by mistake, contact customer support with the re
 
 ## Gemini
 
-Has a free tier, but free-tier content is used to improve Google's products — likely unacceptable for student work; use paid tier.
+Has a free tier, but free-tier content is used to improve Google's products — likely unacceptable for student work; use paid tier.  
+
+Also, Google stores outputs:  
+
+https://cloud.google.com/terms/cloud-privacy-notice
+
+## Anthropic
+
+Check this, stores outputs:  
+
+https://trust.anthropic.com/
+
 
 ## Qwen
 
@@ -40,8 +51,27 @@ API or policy for "Qwen." Privacy depends entirely on which company actually run
 request. Document the specific host actually in use below; do not treat "we use Qwen" as a privacy
 statement on its own.
 
-### DeepInfra (candidate host)
-https://deepinfra.com/privacy
+### DeepInfra (recommended host)
+https://deepinfra.com/privacy  
+https://docs.deepinfra.com/account/data-privacy
+
+Hosts `Qwen/Qwen3-VL-30B-A3B-Instruct` (multimodal, fp8), listed on its model page as "Zero retention".
+Use DeepInfra's own API directly (`https://api.deepinfra.com/v1/openai`), not via a router such as
+OpenRouter, so the policy below is the only one that applies.
+
+From the data privacy page:
+
+  - Input and output data is held in memory only during inference and is not stored to disk.
+  - Not used for training and not shared with third parties (the exceptions apply only to Google and
+    Anthropic models, which we do not use through DeepInfra).
+  - Request content is not logged; only metadata (request ID, cost, sampling parameters).
+
+Caveats:
+
+  - Bulk inference APIs may store data on disk (encrypted) until results are returned. Use the
+    standard synchronous chat completions endpoint, not the bulk/batch APIs, for student data.
+  - This is a published policy, not a signed DPA. Request a data processing agreement if the
+    institution requires a contractual guarantee.
 
 > We understand that the inputs you provide to our API and the outputs it generates may contain
 > your Personal Information. We will not store, sell, or train using this data unless we have your
@@ -53,6 +83,13 @@ https://deepinfra.com/privacy
 DeepInfra, Inc. is a named Delaware company with a published policy, the same shape as the Moonshot
 entry above. Cross-border transfer is to the US, not China, regardless of Qwen's origin — model
 nationality and data-processing location are independent questions.
+
+### OpenRouter and other routers
+
+A router is an extra processor, and the host that actually sees student data is whichever endpoint it
+picks, under that host's policy (not Moonshot's or DeepInfra's) unless pinned. If one is ever used:
+set `provider.only` to a single vetted host with `allow_fallbacks: false`, and enable `zdr` /
+`data_collection: "deny"` at account or guardrail level.
 
 ### Alibaba Cloud (Model Studio / DashScope) — not yet verified
 

@@ -30,15 +30,62 @@ Everything scales linearly if you run multiple problem sets per term — I give 
 
 ## 3. Ubuntu host (gateway + Open WebUI + Postgres)
 
-This is CPU/RAM/disk sizing, not GPU. Workload is bursty HTTP/SSE for ≤30 concurrent sessions — not heavy.
+This is CPU/RAM/disk sizing, not GPU. Workload is bursty HTTP/SSE for ≤30 concurrent sessions — not heavy. A host with ~4 vCPU / 8 GB RAM is the right size class (the current deployment on OCI's free tier was load-tested with 25 concurrent users).
 
-| Tier | Spec | Indicative cost (e.g. Hetzner Cloud, Nov 2026 list prices) |
+The LTI Open WebUI image (`OPENWEBUI_IMAGE_LTI`) is currently an **ARM** build (`-arm` tag). ARM hosts (OCI A1, Hetzner CAX, AWS Graviton) run it as-is; x86 hosts (DigitalOcean, Lightsail, Hetzner CPX/CCX, OCI E4/E5) need an amd64 build of the fork first.
+
+### 3a. Oracle Cloud (Santiago) — pay-as-you-go prices, **no free allowance**
+
+This plan must run without relying on the Always Free allowance (which Oracle may change, and which can reclaim idle instances), so every figure below is full list price. OCI prices are identical in every region.
+
+Unit prices: A1 (ARM) $0.01/OCPU-h + $0.0015/GB-h; E4 (x86) $0.025/OCPU-h + $0.0015/GB-h; E5 (x86) $0.03/OCPU-h + $0.002/GB-h; A2 (ARM) $0.014/OCPU-h + $0.002/GB-h. An A1 OCPU is one core; an x86 OCPU is two threads (2 vCPU). Monthly = 730 hours.
+
+| Shape | Compute / month |
+|---|---|
+| A1.Flex 2 OCPU / 12 GB | ~$28 |
+| A1.Flex 4 OCPU / 8 GB | ~$38 |
+| **A1.Flex 4 OCPU / 16 GB** | **~$47** |
+| A1.Flex 4 OCPU / 24 GB | ~$55 |
+| A1.Flex 8 OCPU / 32 GB | ~$93 |
+| E4.Flex 2 OCPU (4 vCPU) / 8 GB | ~$45 |
+| E4.Flex 2 OCPU (4 vCPU) / 16 GB | ~$54 |
+| E5.Flex 2 OCPU (4 vCPU) / 16 GB | ~$67 |
+| A2.Flex 2 OCPU / 16 GB | ~$44 |
+| A2.Flex 4 OCPU / 16 GB | ~$64 |
+
+Storage and network (all billed, no free allowance):
+
+| Item | Price | Example |
 |---|---|---|
-| Minimum viable | 2–4 vCPU / 4–8 GB RAM, shared | ~€5.50–20/mo |
-| Recommended | 4 vCPU / 8 GB RAM, dedicated vCPU | ~€37–45/mo |
-| Comfortable headroom (both WebUI instances + Postgres + growth) | 8 vCPU / 16 GB RAM, dedicated vCPU | ~€55–70/mo |
+| Block/boot volume | $0.0255/GB-month + performance units ($0.0017/GB per VPU; default 10 VPU) ≈ **$0.0425/GB-month** | 150 GB ≈ $6.4/mo (50 GB is the minimum boot volume) |
+| Volume backups / Object Storage | $0.0255/GB-month | 50 GB of `pg_dump` + image copies ≈ $1.3/mo |
+| Outbound data | First 10 TB/month at $0 (standard pay-as-you-go pricing), then ~$0.0085/GB in North America/Europe | Chat traffic is far below 10 TB; even at 100 GB/mo it would be < $1 |
+| Reserved public IP, VCN | $0 while attached | — |
+| Load balancer | Not needed (nginx runs on the instance) | — |
 
-Any mainstream VPS provider (Hetzner, OVH, DigitalOcean, Contabo) in this size class is fine; nothing here is provider-specific. Add automated `pg_dump` backups (cheap, CPU-light) and keep nginx/TLS as already documented in `gateway/README.md`.
+**Estimated host total per month**
+
+| Sizing | Compute | Storage + backups | **Total** |
+|---|---|---|---|
+| Minimum — A1 2 OCPU / 12 GB, 100 GB volume | ~$28 | ~$5.5 | **~$33** |
+| **Recommended — A1 4 OCPU / 16 GB, 150 GB volume** | ~$47 | ~$8 | **~$55** |
+| Maximum — A1 4 OCPU / 24 GB, 200 GB volume + backups | ~$55 | ~$12 | **~$67** |
+| x86 fallback — E4 2 OCPU / 16 GB, 150 GB volume | ~$54 | ~$8 | **~$62** |
+
+**Recommendation:** A1.Flex 4 OCPU / 16 GB (~$55/mo all-in). It gives 4 real cores for two Open WebUI instances, the gateway, Postgres and nginx, with double the RAM of the 4 vCPU / 8 GB class for just ~$9 more because A1 memory is cheap. It needs no image rebuild (the LTI image is ARM), and flexible shapes can be resized in place (reboot) in either direction, so start there and move toward the minimum or maximum row based on real metrics. If the earlier 25-user test ran on a 2 OCPU / 12 GB instance and OCI Monitoring shows CPU p95 comfortably below ~60% at 30 concurrent users (use the `load-test harness`), the ~$33 minimum row is enough. Without a free tier, OCI is **no longer the cheapest option** (see 3b), but it keeps the data in Santiago, avoids a migration, and uses the existing ARM image. A1 capacity in Santiago is unverified: if a create/resize fails with "out of host capacity", fall back to E4.Flex (needs an amd64 image). Set a budget alert (~$80/mo).
+
+### 3b. Alternatives (list prices, Nov 2026; Hetzner excl. VAT)
+
+| Provider | Plan (≈4 vCPU / 8 GB class) | Price / month | Notes |
+|---|---|---|---|
+| Hetzner | CAX21 (ARM, 4 vCPU / 8 GB) | €10.99 | Cheapest paid ARM equivalent; same image. Marked "currently unavailable" when checked — Hetzner capacity is tight. |
+| Hetzner | CPX22 (x86 shared, 2 vCPU / 4 GB) | €16.99–19.99 | Also showed unavailable. |
+| Hetzner | CCX13 (x86 dedicated, 2 vCPU / 8 GB) | €36.99 | 4 vCPU dedicated (CCX23, 16 GB) is €73–86. 20 TB traffic included (EU); EU/US/Singapore only. |
+| DigitalOcean | Basic 4 vCPU / 8 GB (x86 shared) | $48 | No ARM droplets. Dedicated General Purpose 2 vCPU / 8 GB is $63. |
+| AWS Lightsail | 2 vCPU / 8 GB (x86) | $44 | Fixed price, transfer included. 4 vCPU / 16 GB is $84. |
+| AWS EC2 | t4g.large (ARM, 2 vCPU / 8 GB) | ~$49 | us-east-1 on-demand; plus ~$4 for 50 GB EBS and ~$3.65 public IPv4. t4g.xlarge (4 vCPU / 16 GB) ~$98. Has a São Paulo region. |
+
+Compared with ~$55/mo for the recommended OCI setup, Hetzner CAX21 is the only option that is dramatically cheaper (≈€11 + a few euros of storage, same ARM image) but it showed as unavailable and its nearest regions (Ashburn/Hillsboro) are far from Chile. DigitalOcean, Lightsail and EC2 cost about the same as OCI A1 or more, and DigitalOcean/Lightsail also need an amd64 image. So: stay on OCI (Santiago) and keep Hetzner CAX as the cost-saving/migration target. Add automated `pg_dump` backups to off-instance storage (OCI Object Storage, or Backblaze B2) — cheap, CPU-light — and keep nginx/TLS as already documented in `gateway/README.md`.
 
 ## 4. Image storage
 
@@ -50,7 +97,7 @@ Phone photos of handwritten work aren't auto-compressed by this stack, so plan f
 | 4 cycles/term | ~4,500 | ~6.8 GB |
 | 8 cycles/term | ~9,000 | ~13.5 GB |
 
-This is cheap either way: a 50–100 GB block volume on the same VPS (~$3–7/mo) covers a full term with headroom. If you outgrow local disk or want offsite durability, Open WebUI can be pointed at S3-compatible object storage (e.g., Hetzner Object Storage, Backblaze B2 ≈ $6/TB/mo) instead of the local volume — worth doing once you're keeping multiple terms of history, not needed at day one.
+This is cheap either way: a 50–100 GB block volume on the same VPS covers a full term with headroom (on OCI at ~$0.0425/GB-month with no free allowance, 150 GB including the OS ≈ $6.4/mo; see 3a). If you outgrow local disk or want offsite durability, Open WebUI can be pointed at S3-compatible object storage (e.g., Hetzner Object Storage, Backblaze B2 ≈ $6/TB/mo) instead of the local volume — worth doing once you're keeping multiple terms of history, not needed at day one.
 
 ## 5. LLM inference: hosted API vs self-hosted GPU
 
@@ -62,16 +109,41 @@ This is cheap either way: a 50–100 GB block volume on the same VPS (~$3–7/mo
 |---|---|---|---|
 | **Gemini 3.8 Flash** (already the project's default) | $0.75/M in, $3.75/M out | $0.375/M in, $1.875/M out (50% off, async) | Has a free tier, but free-tier content **is used to improve Google's products** — likely unacceptable for student work; use paid tier |
 | **Moonshot/Kimi K3.1 Pro** (vision-capable flagship, per `docs/privacy.md`'s no-training policy) | $2/M in, $10/M out | $1.20/M in, $6/M out (40% off, async, 24h-ish turnaround) | Direct Moonshot AI pricing; never trains on your data even on the standard tier |
+| **Moonshot/Kimi K3** (flagship, vision-capable, 1M context; unlocked after a $1 top-up) | $3/M in, $15/M out | 60% of standard (async) | Price as listed for the Moonshot AI endpoint on OpenRouter at no markup; Moonshot's own pricing table is rendered client-side, so confirm on platform.kimi.ai/docs/pricing/chat. Reasoning model: reasoning tokens stream separately and are billed as output |
+| **Qwen3-VL-30B-A3B-Instruct via DeepInfra** (direct, see `docs/privacy.md`) | $0.15/M in, $0.60/M out (Flex tier 0.8×) | Bulk API may store data on disk — don't use for student data | Listed as zero-retention: not stored to disk, not trained on, no request content logged. Open weights, so self-hosting stays possible. Cheapest option; verify handwriting accuracy on real submissions first |
 
 Monthly cost at the per-conversation estimate (~16K in / ~1.3K out tokens):
 
-| Cycles/month | Gemini standard | Gemini batch | Moonshot standard | Moonshot batch |
-|---|---|---|---|---|
-| 1 (300 convos) | ~$5 | ~$2.5 | ~$13.5 | ~$8 |
-| 4 (1,200 convos) | ~$20 | ~$10 | ~$54 | ~$32 |
-| 8 (2,400 convos) | ~$41 | ~$20 | ~$108 | ~$65 |
+| Cycles/month | Gemini standard | Gemini batch | Moonshot standard | Moonshot batch | Qwen3-VL (DeepInfra) |
+|---|---|---|---|---|---|
+| 1 (300 convos) | ~$5 | ~$2.5 | ~$13.5 | ~$8 | ~$1 |
+| 4 (1,200 convos) | ~$20 | ~$10 | ~$54 | ~$32 | ~$4 |
+| 8 (2,400 convos) | ~$41 | ~$20 | ~$108 | ~$65 | ~$8 |
 
-**At this scale, LLM inference is a rounding error compared to the VPS, no matter which paid API you choose.** Moonshot costs more per token than Gemini Flash but buys an explicit no-training guarantee from day one.
+**At typical usage, LLM inference is a small fraction of the host cost for Qwen3-VL, Gemini or K3.1 Pro (see 5a-2 for min/max ranges, including Kimi K3).** Moonshot costs more per token than Gemini Flash but buys an explicit no-training guarantee from day one; DeepInfra's Qwen3-VL is the cheapest option with a zero-retention policy.
+
+### 5a-2. Minimum vs. maximum LLM usage — Qwen3-VL (DeepInfra) and Kimi K3 (Moonshot)
+
+Per-conversation token scenarios (system prompt ~3,000 tokens, ~1,000 tokens/image, ~200 tokens of student text per turn; the whole history, including earlier images, is resent each turn):
+
+| Scenario | Turns | Images/turn | Output/turn | Input tokens | Output tokens |
+|---|---|---|---|---|---|
+| **Minimum** | 2 | 1 | ~400 | ~10K | ~0.8K |
+| Typical (section 2) | 2.5 | 1.5 | ~500 | ~16K | ~1.3K |
+| **Maximum** | 6 (turn cap) | 2 | ~600 | ~73K | ~3.6K |
+
+Kimi K3 is a reasoning model whose reasoning tokens are billed as output. The minimum and typical rows assume little or no thinking; the maximum row assumes output grows ~3× (~10.8K tokens) with reasoning. Qwen3-VL-30B-A3B-Instruct is non-reasoning. Prompt-prefix caching (the repeated rubric/system prompt) would lower input cost on both and is not modeled.
+
+| Scenario | Per conversation | 1 cycle/month (300 convos) | 4 cycles (1,200) | 8 cycles (2,400) |
+|---|---|---|---|---|
+| **Qwen3-VL — minimum** | ~$0.002 | **~$0.60** | ~$2.4 | ~$4.8 |
+| Qwen3-VL — typical | ~$0.003 | ~$1 | ~$3.8 | ~$7.6 |
+| **Qwen3-VL — maximum** | ~$0.013 | ~$3.9 | ~$16 | **~$32** |
+| **Kimi K3 — minimum** | ~$0.042 | **~$12.6** | ~$50 | ~$101 |
+| Kimi K3 — typical | ~$0.068 | ~$20 | ~$81 | ~$162 |
+| **Kimi K3 — maximum** | ~$0.38 | ~$115 | ~$458 | **~$916** |
+
+Reading the table: the realistic range per month is roughly **$0.60–$32 for Qwen3-VL** and **$13–$916 for Kimi K3**, with typical usage at ~$1–8 and ~$20–162 respectively. Kimi K3 is ~20–30× more expensive than Qwen3-VL on the same traffic, and its worst case (every student hitting the turn cap with images, over 8 cycles) is the one scenario where LLM cost exceeds the host. Cap turns and images/turn, and set a spend limit on the provider key. Also check Moonshot's rate limits: concurrency/RPM/TPM tiers depend on cumulative top-up, so confirm the account tier supports 30 concurrent chats before relying on it. For comparison, Kimi K3.1 Pro (the previous table) lands between the two at $2/$10 per M tokens.
 
 ### 5b. Self-hosted open-weight VLM on rented GPU
 
@@ -100,7 +172,7 @@ Given your volume, **Path A gets you the exact behavior you described (batched, 
 
 ## 7. Recommended phased approach
 
-1. **Start with the hosted-API path, unchanged architecture.** Keep `OPENAI_API_BASE_URL` pointed at Gemini's paid tier (already the default) or switch to Moonshot if the no-training guarantee is a hard requirement. Cost: VPS (~€40–70/mo) + a few to a few dozen dollars/month in inference — trivial at 300 users.
+1. **Start with the hosted-API path, unchanged architecture.** Keep `OPENAI_API_BASE_URL` pointed at Gemini's paid tier (already the default) or switch to Moonshot if the no-training guarantee is a hard requirement. Alternatively, point it at DeepInfra's Qwen3-VL (zero-retention, ~$1–8/mo) once it passes a side-by-side check on real handwritten submissions. Cost: host (~$55/mo for OCI A1 4 OCPU / 16 GB including storage, with no free allowance; ~$33–67 across the min–max sizings in section 3a) + inference (~$1–8/mo typical with Qwen3-VL, up to ~$32 at maximum; Kimi K3 ~$20–162 typical, up to ~$900 at the extreme maximum; see 5a-2).
 2. **If/when you want delayed responses to save cost (or to decouple grading from class time), implement Path A** (provider Batch API + a small write-back extension to the gateway). Cheap to build, cheap to run, ~40–50% further inference savings.
 3. **Only invest in self-hosted GPU (Path B) if** a privacy/compliance requirement forces on-prem/self-hosted inference, or volume grows by 10–50× such that GPU-hour costs genuinely undercut API costs — and even then, pilot the serverless+batching cold-start numbers with your own `load-test harness` before committing budget, since those numbers are the least certain part of this whole estimate.
 
